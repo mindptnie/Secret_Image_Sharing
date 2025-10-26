@@ -5,44 +5,9 @@ import cv2
 import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as ssim
 
-def main():
-    # 設定 GT 影像和生成影像的路徑
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    
-    folder_GT = os.path.join(BASE_DIR, '456_output/grayscale_image.png')
-    folder_Gen = os.path.join(BASE_DIR, '456_output/reconstructed_image.png')
-    output_dir = os.path.join(BASE_DIR, '456_output/')
-
-    os.makedirs(output_dir, exist_ok=True)  # 確保輸出資料夾存在
-
-    test_Y = True  # True: 僅測試 Y 通道；False: 測試 RGB 通道
-
-    # 讀取 GT 影像和生成影像
-    im_GT = cv2.imread(folder_GT) / 255.
-    im_Gen = cv2.imread(folder_Gen) / 255.
-
-    if test_Y and im_GT.shape[2] == 3:
-        im_GT_in = bgr2ycbcr(im_GT)
-        im_Gen_in = bgr2ycbcr(im_Gen)
-    else:
-        im_GT_in = im_GT
-        im_Gen_in = im_Gen
-
-    # 計算 MSE, PSNR 和 SSIM
-    MSE = calculate_mse(im_GT_in * 255, im_Gen_in * 255)
-    PSNR = calculate_psnr(im_GT_in * 255, im_Gen_in * 255)
-    SSIM = calculate_ssim(im_GT_in * 255, im_Gen_in * 255)
-
-    # 輸出 MSE, PSNR 和 SSIM 結果
-    print('MSE: {:.6f}, \tPSNR: {:.6f} dB, \tSSIM: {:.6f}'.format(MSE, PSNR, SSIM))
-
-    # 繪製比較圖
-    plot_comparison(im_GT, im_Gen, MSE, PSNR, SSIM, output_dir)
-
-    # 繪製單獨的 MSE, PSNR, SSIM 數線圖
-    save_mse_plot(MSE, output_dir)
-    save_psnr_plot(PSNR, output_dir)
-    save_ssim_plot(SSIM, output_dir)
+def print_statistics(mse, psnr, ssim_value):
+    """ 輸出 MSE, PSNR 和 SSIM 統計數據 """
+    print('MSE: {:.6f}, \tPSNR: {:.6f} dB, \tSSIM: {:.6f}'.format(mse, psnr, ssim_value))
 
 def calculate_mse(img1, img2):
     """ 計算 MSE（均方誤差） """
@@ -130,5 +95,38 @@ def save_ssim_plot(ssim_value, output_dir):
     print(f"SSIM 數線圖已儲存：{save_path}")
     plt.show()
 
-if __name__ == '__main__':
-    main()
+def loss_curve(epochs, loss_history, output_dir):
+    print("模型與 loss 已儲存到 vae.pth")
+    # 繪製 Loss 圖
+    plt.figure(figsize=(8, 6))
+    plt.plot(range(1, epochs + 1), loss_history, label="Loss", color="red")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Training Loss Curve")
+    plt.legend()
+    plt.grid()
+    plt.savefig(os.path.join(output_dir, "loss_curve.png"))
+    plt.show()
+    
+def learning_rate(epochs, lr_history, output_dir):
+    # 繪製 Learning Rate 圖
+    plt.figure(figsize=(8, 6))
+    plt.plot(range(1, epochs + 1), lr_history, label="Learning Rate", color="blue")
+    plt.xlabel("Epochs")
+    plt.ylabel("Learning Rate")
+    plt.title("Learning Rate Curve")
+    plt.legend()
+    plt.grid()
+    plt.savefig(os.path.join(output_dir, "lr_curve.png"))
+    plt.show()
+    
+def show_image(original_image, reconstructed_from_combined):
+    plt.subplot(1, 2, 1)
+    plt.imshow(original_image.view(256, 256).cpu().numpy(), cmap="gray")
+    plt.title("Original Image")
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(reconstructed_from_combined.view(256, 256).cpu().numpy(), cmap="gray")
+    plt.title("Reconstructed from Shares")
+
+    plt.show()
