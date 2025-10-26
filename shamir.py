@@ -191,7 +191,8 @@ def dequantize_latent(latent_quantized, min_val=-3, max_val=3):
     return latent
 
 def create_shares(latent_dims, n, r, output_dir="shares"):
-    latent_quantized = quantize_latent(randn(latent_dims))
+    sample_latent = randn(latent_dims)
+    latent_quantized = quantize_latent(sample_latent)
     shares, shares_extra = polynomial(latent_quantized, n=n, r=r)
 
     shares_with_positions = []

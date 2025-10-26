@@ -27,7 +27,7 @@ data_path = "data/images/"
 # Parameters
 latent_dim = 1024  # latent dimension
 epochs = 1
-batch_size = 32                                                         
+batch_size = 100                                                         
 image_size = 256 * 256  
 
 device = t_device("cuda" if t_cuda.is_available() else "cpu")
@@ -42,8 +42,8 @@ def main():
     train_data_path = os.path.join(BASE_DIR, "Pic", image_name, "Training data")
     test_data_path  = os.path.join(BASE_DIR, "Pic", image_name, "Testing data")
     
-    train_image_paths = glob.glob(os.path.join(train_data_path, "*.png"))
-    test_image_paths = glob.glob(os.path.join(test_data_path, "*.png"))
+    train_image_paths = glob.glob(os.path.join(train_data_path, f"{image_name}_*.png"))
+    test_image_paths = glob.glob(os.path.join(test_data_path, f"{image_name}_*.png"))
     
     print(f"Found {len(train_image_paths)} training images.")
 
@@ -78,16 +78,16 @@ def main():
     
     with t_no_grad():
         mu, log_var, latent, reconstructed = vae_model.forward(test_image)  # 加 batch 維度
-        sample_latent = t_randn(latent_dim)
+        # sample_latent = t_randn(latent_dim)
         n, r = 6, 4
         # 生成 shares
-        shares_with_positions = sss.create_shares(sample_latent, n, r)
+        shares_with_positions = sss.create_shares(latent_dim, n, r)
         
         combined_latent = sss.combine_shares(shares_with_positions, r).unsqueeze(0).to(device)
         
 
         reconstructed_from_combined = vae_model.decoder(combined_latent.to(device))  # 確保 latent vector 也在 GPU
-        print(f"原始 latent: {sample_latent[:5]}")
+        print(f"原始 latent: {t_randn(latent_dim)[:5]}")
         print(f"重建的 latent: {combined_latent[:5]}")
         # 顯示影像
         plot_graphs.show_image(test_image, reconstructed_from_combined)
