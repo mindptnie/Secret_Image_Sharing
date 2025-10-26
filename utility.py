@@ -2,6 +2,8 @@ import os
 import cv2
 import torch.nn as t_nn
 from torch import sum as t_sum
+import torch.utils.data
+from torchvision.transforms import ToTensor
 
 def vae_loss_function(reconstructed, original, mu, log_var):
      # **確保 reconstructed 的 shape 和 original 一樣**
@@ -13,8 +15,14 @@ def vae_loss_function(reconstructed, original, mu, log_var):
 
 # 預處理影像
 def preprocess_image(image_path, output_dir="preprocessed", image_size=256*256):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        print(f"Failed to load image: {image_path}")
+        return None
+    
     img_resized = cv2.resize(img, (256, 256))
     cv2.imwrite(os.path.join(output_dir, "grayscale_image.png"), img_resized)
-    return t_nn.ToTensor()(img_resized).view(-1, image_size).float()
-
+    return ToTensor()(img_resized).view(-1, image_size).float()

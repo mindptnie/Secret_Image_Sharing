@@ -1,5 +1,6 @@
 
 import os
+import glob
 
 import torch.cuda as t_cuda
 import torch.optim as t_optim
@@ -25,9 +26,9 @@ data_path = "data/images/"
 
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 100
+epochs = 1
 batch_size = 32                                                         
-image_size = 256 * 256 
+image_size = 256 * 256  
 
 device = t_device("cuda" if t_cuda.is_available() else "cpu")
 print(f"Using device: {device}")  # 應該顯示 "cuda"
@@ -40,11 +41,14 @@ def main():
 
     train_data_path = os.path.join(BASE_DIR, "Pic", image_name, "Training data")
     test_data_path  = os.path.join(BASE_DIR, "Pic", image_name, "Testing data")
-
-    train_image_paths = [os.path.join(train_data_path, f'{image_name}_{i}.png') for i in range(1,10001)]
-    test_image_paths = [os.path.join(test_data_path, f'{image_name}_{i}.png') for i in range(1,2501)]
+    
+    train_image_paths = glob.glob(os.path.join(train_data_path, "*.png"))
+    test_image_paths = glob.glob(os.path.join(test_data_path, "*.png"))
+    
+    print(f"Found {len(train_image_paths)} training images.")
 
     train_dataset = ds.CustomDataset(train_image_paths)
+
     train_loader = train_dataset.get_dataloader(batch_size=batch_size, shuffle=True)
 
     start.record()

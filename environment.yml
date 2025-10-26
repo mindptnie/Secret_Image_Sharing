@@ -71,4 +71,5 @@ dependencies:
       - triton==3.1.0
       - typing-extensions==4.12.2
       - tzdata==2024.2
+      - tqdm==4.66.4
 prefix: /home/emily/anaconda3/envs/sis

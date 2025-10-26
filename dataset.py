@@ -1,4 +1,5 @@
 from torch.utils.data import Dataset, DataLoader
+import os
 import utility as util
 
 class CustomDataset(Dataset):
@@ -10,6 +11,10 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, idx):
         return util.preprocess_image(self.image_paths[idx])
-    
+
     def get_dataloader(self, batch_size, shuffle=True):
-        return DataLoader(self, batch_size=batch_size, shuffle=shuffle)
+        return DataLoader(
+            self,      
+            batch_size=batch_size, 
+            shuffle=shuffle,
+        )

@@ -1,3 +1,6 @@
+import math
+import time
+from tqdm import tqdm
 from torch import exp as t_exp
 from torch import randn_like as t_randn_like
 import torch.nn as t_nn
@@ -47,45 +50,57 @@ class VariationalAutoencoder(t_nn.Module):
         reconstructed = self.decoder(z)
         #新增
         # **確保輸出 shape 為 `[batch_size, 1, 128, 128]`**
-        reconstructed = reconstructed.view(-1, 1, 128, 128)
+        size = int(math.sqrt(self.image_size))
+        reconstructed = reconstructed.view(-1, 1, size, size)
+        # reconstructed = reconstructed.view(-1, 1, 256, 256)
         return mu, log_var, z, reconstructed
     
     # 訓練 VAE (含學習率調度)
     def train_vae(self, optimizer, scheduler, train_loader, epochs, device):
         loss_history = []
         lr_history = []
+        
+        print("Starting training...")
+        total_start_time = time.time()
+        
         for epoch in range(epochs):
             epoch_loss = 0
-            for data in train_loader:
-                #img = data.view(-1, 1, 128, 128)  # 確保輸入形狀正確
-                #img = data.view(-1, 1, 128, 128).to(device)  # 把資料搬到 GPU
-                img = data.view(-1, 1, 256, 256).to(device)  # 把資料搬到 GPU
+            
+            progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}", leave=False)
+
+            for data in progress_bar:
+                if data is None:
+                    continue
+                
+                img = data.view(-1, 1, 256, 256).to(device) 
 
                 optimizer.zero_grad()
-                #mu, log_var, latent, reconstructed = vae(data)
-                mu, log_var, latent, reconstructed = self.forward(img) # 確保在 GPU 計算
+                mu, log_var, latent, reconstructed = self(img) 
 
-                # **檢查 reconstructed 和 img 的 shape**
                 assert reconstructed.shape == img.shape, f"Shape mismatch: {reconstructed.shape} vs {img.shape}"
 
-                #loss = vae_loss_function(reconstructed, data, mu, log_var)
-                loss = util.vae_loss_function(reconstructed, img, mu, log_var)  # 用 `img`，而不是 `data`
+                loss = util.vae_loss_function(reconstructed, img, mu, log_var) 
                 loss.backward()
                 optimizer.step()
-                epoch_loss += loss.item()
-            # 記錄 epoch 平均 loss
+                
+                batch_loss = loss.item()
+                epoch_loss += batch_loss
+
+                progress_bar.set_postfix(Loss=f"{batch_loss:.4f}")
+            
             avg_loss = epoch_loss / len(train_loader)
             loss_history.append(avg_loss)
-            # 更新學習率
+            
             scheduler.step()
             current_lr = optimizer.param_groups[0]['lr']
             lr_history.append(current_lr)
-            #print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item():.6f}, LR: {current_lr:.6f}")
-            print(f"Epoch {epoch+1}/{epochs},  Loss: {avg_loss:.6f}, LR: {current_lr:.6f}")
+            
+            print(f"Epoch {epoch+1}/{epochs} Summary: Avg Loss: {avg_loss:.6f}, LR: {current_lr:.6f}")
 
-            #if (epoch + 1) % 5 == 0:
-            #    print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.6f}, LR: {current_lr:.6f}")
-        plot_graphs.loss_curve(epochs, loss_history, output_dir="results")
-        plot_graphs.learning_rate(epochs, lr_history, output_dir="results")
-        
+        progress_bar.close()
+            
+        total_end_time = time.time()
+        total_time = total_end_time - total_start_time
+        print(f"Total training time: {total_time:.2f} seconds")
+
         pass
