@@ -5,11 +5,11 @@ import argparse
 import png
 import sys
 import os
-import torch.tensor as tensor
-import torch.int32 as int32
-import torch.float32 as float32
+from torch import tensor
+from torch import int32
+from torch import float32
+from torch import randn
 import cv2
-import torch.rand as randn
 from PIL import Image
 from Crypto.Util.number import math, inverse
 

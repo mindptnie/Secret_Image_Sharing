@@ -1,5 +1,5 @@
-import torch.exp as t_exp
-import torch.randn_like as t_randn_like
+from torch import exp as t_exp
+from torch import randn_like as t_randn_like
 import torch.nn as t_nn
 
 import utility as util

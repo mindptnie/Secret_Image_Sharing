@@ -1,12 +1,13 @@
 
 import os
+
 import torch.cuda as t_cuda
-import torch.device as t_device
 import torch.optim as t_optim
 import torch.optim.lr_scheduler as lr_scheduler
-import torch.no_grad as t_no_grad
-import torch.randn as t_randn
-import cv2.imwrite
+from torch import device as t_device
+from torch import no_grad as t_no_grad
+from torch import randn as t_randn
+from cv2 import imwrite as write
 
 import vae as vae_module
 
@@ -88,7 +89,7 @@ def main():
         plot_graphs.show_image(test_image, reconstructed_from_combined)
 
         # 儲存重建影像
-        cv2.imwrite(os.path.join(results_path, "reconstructed_image.png"), reconstructed_from_combined.view(256, 256).cpu().numpy() * 255)
+        write(os.path.join(results_path, "reconstructed_image.png"), reconstructed_from_combined.view(256, 256).cpu().numpy() * 255)
         #print(next(vae.parameters()).device)  # 應該顯示 "cuda:0"
         #print(f"combined_latent device: {combined_latent.device}")  # 應該顯示 "cuda:0"
 if __name__ == "__main__":

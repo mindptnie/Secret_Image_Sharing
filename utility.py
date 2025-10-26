@@ -1,7 +1,7 @@
 import os
 import cv2
 import torch.nn as t_nn
-import torch.sum as t_sum
+from torch import sum as t_sum
 
 def vae_loss_function(reconstructed, original, mu, log_var):
      # **確保 reconstructed 的 shape 和 original 一樣**
