@@ -21,6 +21,9 @@ class VariationalAutoencoder(t_nn.Module):
             t_nn.Linear(2048, 1024),
             t_nn.ReLU(),
         )
+        
+        self.mu_layer = t_nn.Linear(1024, latent_dim)  # 平均值 (mu)
+        self.log_var_layer = t_nn.Linear(1024, latent_dim)  # log(方差) (log_var)
 
         # 解碼器 (Decoder)
         self.decoder = t_nn.Sequential(
@@ -32,8 +35,6 @@ class VariationalAutoencoder(t_nn.Module):
             t_nn.Sigmoid(),  # 限制輸出在 [0,1]
         )
 
-        self.mu_layer = t_nn.Linear(1024, latent_dim)  # 平均值 (mu)
-        self.log_var_layer = t_nn.Linear(1024, latent_dim)  # log(方差) (log_var)
         pass
 
     def reparameterize(self, mu, log_var):
@@ -72,7 +73,8 @@ class VariationalAutoencoder(t_nn.Module):
                 if data is None:
                     continue
                 
-                img = data.view(-1, 1, 256, 256).to(device) 
+                size = int(math.sqrt(self.image_size))
+                img = data.view(-1, 1, size, size).to(device)
 
                 optimizer.zero_grad()
                 mu, log_var, latent, reconstructed = self(img) 

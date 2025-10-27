@@ -120,13 +120,14 @@ def learning_rate(epochs, lr_history, output_dir):
     plt.savefig(os.path.join(output_dir, "lr_curve.png"))
     plt.show()
     
-def show_image(original_image, reconstructed_from_combined):
+def show_image(original_image, reconstructed_from_combined,size):
+
     plt.subplot(1, 2, 1)
-    plt.imshow(original_image.view(256, 256).cpu().numpy(), cmap="gray")
+    plt.imshow(original_image.view(size, size).cpu().numpy(), cmap="gray")
     plt.title("Original Image")
 
     plt.subplot(1, 2, 2)
-    plt.imshow(reconstructed_from_combined.view(256, 256).cpu().numpy(), cmap="gray")
+    plt.imshow(reconstructed_from_combined.view(size, size).cpu().numpy(), cmap="gray")
     plt.title("Reconstructed from Shares")
 
     plt.show()

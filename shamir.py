@@ -15,6 +15,9 @@ from Crypto.Util.number import math, inverse
 
 MODULO = 251  # 使用 mod 251
 
+# Root directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # 處理像素值超過 250 的問題
 def clamp_pixel_values(img):
     img = np.where(img > 250, 250, img)
@@ -212,7 +215,12 @@ def create_shares(latent_dims, n, r, output_dir="shares"):
             share_image = share.reshape(64, 64).astype(np.uint8)
         else:
             raise ValueError("Unsupported latent_dim for reshape")
-        cv2.imwrite(os.path.join(output_dir, f"share_{i+1}.png"), share_image)
+        print(f"Create Share {i+1} shape: {share_image.shape}")
+        
+        if not os.path.exists(os.path.join(BASE_DIR,output_dir)):
+            os.makedirs(os.path.join(BASE_DIR,output_dir))
+            
+        cv2.imwrite(os.path.join(BASE_DIR,output_dir, f"share_{i+1}.png"), share_image)
 
     #return shares_with_positions
     return shares_with_positions
