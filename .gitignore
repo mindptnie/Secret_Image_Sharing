@@ -4,3 +4,4 @@ preprocessed/
 results/
 shares/
 graph_outputs/
+__pycache__/
