@@ -193,34 +193,41 @@ def dequantize_latent(latent_quantized, min_val=-3, max_val=3):
     latent = latent_scaled * (max_val - min_val) + min_val
     return latent
 
-def create_shares(latent_dims, n, r, output_dir="shares"):
+def create_shares(latent, n, r, output_dir="shares", group_polynomial=False):
     if not os.path.exists(os.path.join(BASE_DIR,output_dir)):
         os.makedirs(os.path.join(BASE_DIR,output_dir))
         
-    sample_latent = randn(latent_dims)
-    latent_quantized = quantize_latent(sample_latent)
-    shares, shares_extra = polynomial(latent_quantized, n=n, r=r)
+    latent_quantized = quantize_latent(latent)
+    if group_polynomial:
+        shares, shares_extra = polynomial_group(latent_quantized, n=n, r=r)
+    else:
+        shares, shares_extra = polynomial(latent_quantized, n=n, r=r)
 
     shares_with_positions = []
+    # for i, share in enumerate(shares):
+    #     share_tensor = tensor(share, dtype=int32)
+    #     position = (i + 1,)  
+    #     shares_with_positions.append((share_tensor, position, shares_extra[i]))
+    #     if latent_dims == 256:
+    #         share_image = share.reshape(16, 16).astype(np.uint8)
+    #     elif latent_dims == 512:
+    #         share_image = share.reshape(16, 32).astype(np.uint8)
+    #     elif latent_dims == 1024:
+    #         share_image = share.reshape(32, 32).astype(np.uint8)
+    #     elif latent_dims == 2048:
+    #         share_image = share.reshape(32, 64).astype(np.uint8)
+    #     elif latent_dims == 4096:
+    #         share_image = share.reshape(64, 64).astype(np.uint8)
+    #     else:
+    #         raise ValueError("Unsupported latent_dim for reshape")
+    #     print(f"Create Share {i+1} shape: {share_image.shape}")
     for i, share in enumerate(shares):
         share_tensor = tensor(share, dtype=int32)
         position = (i + 1,)  
         shares_with_positions.append((share_tensor, position, shares_extra[i]))
-        if latent_dims == 256:
-            share_image = share.reshape(16, 16).astype(np.uint8)
-        elif latent_dims == 512:
-            share_image = share.reshape(16, 32).astype(np.uint8)
-        elif latent_dims == 1024:
-            share_image = share.reshape(32, 32).astype(np.uint8)
-        elif latent_dims == 2048:
-            share_image = share.reshape(32, 64).astype(np.uint8)
-        elif latent_dims == 4096:
-            share_image = share.reshape(64, 64).astype(np.uint8)
-        else:
-            raise ValueError("Unsupported latent_dim for reshape")
-        print(f"Create Share {i+1} shape: {share_image.shape}")
 
-            
+        share_image = share.reshape(32, 32).astype(np.uint8)
+
         cv2.imwrite(os.path.join(BASE_DIR,output_dir, f"share_{i+1}.png"), share_image)
 
     #return shares_with_positions

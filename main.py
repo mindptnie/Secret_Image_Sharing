@@ -33,7 +33,7 @@ image_name = "baboon"
 
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 5
+epochs = 1
 batch_size = 16
 image_size = 256 * 256
 
@@ -42,6 +42,7 @@ n_shares = 6  # Share count
 r_threshold = 5  # Reconstruction threshold
 
 #^^^^^^ Configuration ^^^^^^#
+size = int(math.sqrt(image_size))
 
 device = t_device("cuda" if t_cuda.is_available() else "cpu")
 print(f"Using device: {device}")  # 應該顯示 "cuda"
@@ -86,7 +87,7 @@ def main():
     scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     # Train VAE
-    
+
     vae_model.train_vae(optimizer, scheduler, train_loader, epochs, device)
     end.record()
     t_cuda.synchronize()
@@ -97,17 +98,19 @@ def main():
     test_image = util.preprocess_image(test_image_paths[0], image_size).to(device)  # 讓測試影像也在 GPU
     
     with t_no_grad():
+        mu, log_var, latent, reconstructed = vae_model.forward(test_image)  # 加 batch 維度
+        sample_latent = t_randn(latent_dim)
 
         # 生成 shares
-        shares_with_positions = sss.create_shares(latent_dim, n_shares, r_threshold)
+        shares_with_positions = sss.create_shares(sample_latent, n_shares, r_threshold)
         
         combined_latent = sss.combine_shares(shares_with_positions, r_threshold).unsqueeze(0).to(device)
 
         reconstructed_from_combined = vae_model.decoder(combined_latent.to(device))  # 確保 latent vector 也在 GPU
-        print(f"原始 latent: {t_randn(latent_dim)[:5]}")
+        print(f"原始 latent: {sample_latent[:5]}")
         print(f"重建的 latent: {combined_latent[:5]}")
         # 顯示影像
-    size = int(math.sqrt(image_size))
+    
     plot_graphs.show_image(test_image, reconstructed_from_combined,size)
     # 儲存重建影像
     write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_from_combined.view(size, size).cpu().numpy() * 255)

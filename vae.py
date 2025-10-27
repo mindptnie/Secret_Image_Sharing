@@ -44,11 +44,16 @@ class VariationalAutoencoder(t_nn.Module):
 
     def forward(self, x):
         x = x.view(-1, self.image_size)  # 攤平成 1D
+        
         encoded = self.encoder(x)
+        
         mu = self.mu_layer(encoded)
         log_var = self.log_var_layer(encoded)
+        
         z = self.reparameterize(mu, log_var)
+        
         reconstructed = self.decoder(z)
+        
         #新增
         # **確保輸出 shape 為 `[batch_size, 1, 128, 128]`**
         size = int(math.sqrt(self.image_size))
@@ -78,8 +83,6 @@ class VariationalAutoencoder(t_nn.Module):
 
                 optimizer.zero_grad()
                 mu, log_var, latent, reconstructed = self(img) 
-
-                util.vae_loss_function(reconstructed, img, mu, log_var)
 
                 loss = util.vae_loss_function(reconstructed, img, mu, log_var) 
                 loss.backward()

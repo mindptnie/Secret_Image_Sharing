@@ -175,7 +175,7 @@ def show_image(original_image, reconstructed_from_combined, size, output_dir="gr
     plt.imshow(reconstructed_from_combined.view(size, size).cpu().numpy(), cmap="gray")
     plt.title("Reconstructed from Shares")
 
-    save_path = os.path.join(BASE_DIR,output_dir, "comparison_original_reconstructed.png")
-    plt.savefig(save_path)
-    print(f"original vs reconstructed :{save_path}")
-    # plt.show()
+    # save_path = os.path.join(BASE_DIR,output_dir, "comparison_original_reconstructed.png")
+    # plt.savefig(save_path)
+    # print(f"original vs reconstructed :{save_path}")
+    plt.show()
