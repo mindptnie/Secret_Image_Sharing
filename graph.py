@@ -149,7 +149,7 @@ def loss_curve(epochs, loss_history, output_dir="graph_outputs"):
     plt.savefig(save_path)
     print(f"SSIM 數線圖已儲存：{save_path}")
     
-    # plt.show()
+    plt.show()
 
 def learning_rate(epochs, lr_history, output_dir="graph_outputs"):
     # 繪製 Learning Rate 圖
@@ -164,9 +164,11 @@ def learning_rate(epochs, lr_history, output_dir="graph_outputs"):
     save_path = os.path.join(BASE_DIR,output_dir, "lr_curve.png")
     plt.savefig(save_path)
     print(f"Learning Rate 數線圖已儲存：{save_path}")
+    
+    plt.show()
 
 def show_image(original_image, reconstructed_from_combined, size, output_dir="graph_outputs"):
-
+    
     plt.subplot(1, 2, 1)
     plt.imshow(original_image.view(size, size).cpu().numpy(), cmap="gray")
     plt.title("Original Image")
@@ -175,7 +177,7 @@ def show_image(original_image, reconstructed_from_combined, size, output_dir="gr
     plt.imshow(reconstructed_from_combined.view(size, size).cpu().numpy(), cmap="gray")
     plt.title("Reconstructed from Shares")
 
-    # save_path = os.path.join(BASE_DIR,output_dir, "comparison_original_reconstructed.png")
-    # plt.savefig(save_path)
-    # print(f"original vs reconstructed :{save_path}")
+    save_path = os.path.join(BASE_DIR,output_dir, "comparison_original_reconstructed.png")
+    plt.savefig(save_path)
+    print(f"original vs reconstructed :{save_path}")
     plt.show()

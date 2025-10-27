@@ -34,7 +34,7 @@ image_name = "baboon"
 # Parameters
 latent_dim = 1024  # latent dimension
 epochs = 1
-batch_size = 16
+batch_size = 32
 image_size = 256 * 256
 
 # Shamir's Secret Sharing parameters
@@ -59,7 +59,6 @@ def main():
     start = t_cuda.Event(enable_timing=True)
     end = t_cuda.Event(enable_timing=True)
     
-
     train_data_path = os.path.join(BASE_DIR, data_path, image_name, "Training data")
     test_data_path  = os.path.join(BASE_DIR, data_path, image_name, "Testing data")
 
