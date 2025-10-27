@@ -21,16 +21,27 @@ import graph as plot_graphs
 # Root directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-####### Configuration #######
+#vvvvvv Configuration vvvvvv#
+
 # Directories
+process_path = "preprocessed"
 results_path = "results"
 data_path = "Pic"
 
+# Name of the image folder
+image_name = "baboon"
+
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 1
-batch_size = 10                                                         
-image_size = 256 * 256  # Assuming 128x128 images  
+epochs = 5
+batch_size = 16
+image_size = 256 * 256
+
+# Shamir's Secret Sharing parameters
+n_shares = 6  # Share count
+r_threshold = 5  # Reconstruction threshold
+
+#^^^^^^ Configuration ^^^^^^#
 
 device = t_device("cuda" if t_cuda.is_available() else "cpu")
 print(f"Using device: {device}")  # 應該顯示 "cuda"
@@ -41,17 +52,19 @@ def main():
     util.create_directory(results_path)
     util.create_directory(data_path)
     
+    # Delete previous shares
+    util.delete_image(os.path.join(BASE_DIR, "shares"))
+    
     start = t_cuda.Event(enable_timing=True)
     end = t_cuda.Event(enable_timing=True)
     
-    image_name = "baboon"
 
     train_data_path = os.path.join(BASE_DIR, data_path, image_name, "Training data")
     test_data_path  = os.path.join(BASE_DIR, data_path, image_name, "Testing data")
 
-    train_image_paths = glob.glob(os.path.join(train_data_path, f"{image_name}_*.png"))
-    test_image_paths = glob.glob(os.path.join(test_data_path, f"{image_name}_*.png"))
-    
+    train_image_paths = util.get_images_in_paths(train_data_path, image_name)
+    test_image_paths = util.get_images_in_paths(test_data_path, image_name)
+
     print(f"Found {len(train_image_paths)} training images.")
 
     train_dataset = ds.CustomDataset(train_image_paths)
@@ -84,14 +97,11 @@ def main():
     test_image = util.preprocess_image(test_image_paths[0], image_size).to(device)  # 讓測試影像也在 GPU
     
     with t_no_grad():
-        mu, log_var, latent, reconstructed = vae_model(test_image)  # 加 batch 維度
-        # sample_latent = t_randn(latent_dim)
-        n, r = 6, 4
+
         # 生成 shares
-        shares_with_positions = sss.create_shares(latent_dim, n, r, results_path)
+        shares_with_positions = sss.create_shares(latent_dim, n_shares, r_threshold)
         
-        combined_latent = sss.combine_shares(shares_with_positions, r).unsqueeze(0).to(device)
-        
+        combined_latent = sss.combine_shares(shares_with_positions, r_threshold).unsqueeze(0).to(device)
 
         reconstructed_from_combined = vae_model.decoder(combined_latent.to(device))  # 確保 latent vector 也在 GPU
         print(f"原始 latent: {t_randn(latent_dim)[:5]}")
@@ -101,9 +111,11 @@ def main():
     plot_graphs.show_image(test_image, reconstructed_from_combined,size)
     # 儲存重建影像
     write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_from_combined.view(size, size).cpu().numpy() * 255)
-
-        #print(next(vae.parameters()).device)  # 應該顯示 "cuda:0"
-        #print(f"combined_latent device: {combined_latent.device}")  # 應該顯示 "cuda:0"
+    #print(next(vae.parameters()).device)  # 應該顯示 "cuda:0"
+    #print(f"combined_latent device: {combined_latent.device}")  # 應該顯示 "cuda:0"
+    
+    plot_graphs.calculate_statistics(process_path, results_path)
+    
     
 if __name__ == "__main__":
     main()

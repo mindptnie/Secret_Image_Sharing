@@ -4,6 +4,44 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as ssim
+# Root directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def calculate_statistics(img_path1:str, img_path2:str, output_dir="graph_outputs", test_Y=True):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        
+    folder_GT = os.path.join(BASE_DIR, img_path1, 'grayscale_image.png')
+    folder_Gen = os.path.join(BASE_DIR, img_path2, 'reconstructed_image.png')
+    
+    print(f"GT path: {folder_GT}")
+    print(f"Gen path: {folder_Gen}")
+    
+    im_GT = cv2.imread(folder_GT) / 255.
+    im_Gen = cv2.imread(folder_Gen) / 255.
+
+    if test_Y and im_GT.shape[2] == 3:
+        im_GT_in = bgr2ycbcr(im_GT)
+        im_Gen_in = bgr2ycbcr(im_Gen)
+    else:
+        im_GT_in = im_GT
+        im_Gen_in = im_Gen
+
+    # 計算 MSE, PSNR 和 SSIM
+    MSE = calculate_mse(im_GT_in * 255, im_Gen_in * 255)
+    PSNR = calculate_psnr(im_GT_in * 255, im_Gen_in * 255)
+    SSIM = calculate_ssim(im_GT_in * 255, im_Gen_in * 255)
+
+    # 輸出 MSE, PSNR 和 SSIM 結果
+    print_statistics(MSE, PSNR, SSIM)
+
+    # 繪製比較圖
+    plot_comparison(im_GT, im_Gen, MSE, PSNR, SSIM, output_dir)
+
+    # 繪製單獨的 MSE, PSNR, SSIM 數線圖
+    save_mse_plot(MSE, output_dir)
+    save_psnr_plot(PSNR, output_dir)
+    save_ssim_plot(SSIM, output_dir)
 
 def print_statistics(mse, psnr, ssim_value):
     """ 輸出 MSE, PSNR 和 SSIM 統計數據 """
@@ -42,7 +80,7 @@ def plot_comparison(img1, img2, mse, psnr, ssim, output_dir):
     plt.title(f"Reconstructed Image\nMSE: {mse:.4f}, PSNR: {psnr:.2f} dB, SSIM: {ssim:.4f}")
     plt.axis("off")
 
-    save_path = os.path.join(output_dir, "comparison.png")
+    save_path = os.path.join(BASE_DIR,output_dir, "comparison.png")
     plt.savefig(save_path)
     print(f"比較圖已儲存：{save_path}")
     plt.show()
@@ -58,7 +96,7 @@ def save_mse_plot(mse, output_dir):
     plt.title("MSE Analysis")
     plt.legend()
 
-    save_path = os.path.join(output_dir, "mse_analysis.png")
+    save_path = os.path.join(BASE_DIR,output_dir, "mse_analysis.png")
     plt.savefig(save_path)
     print(f"MSE 數線圖已儲存：{save_path}")
     plt.show()
@@ -74,7 +112,7 @@ def save_psnr_plot(psnr, output_dir):
     plt.title("PSNR Analysis")
     plt.legend()
 
-    save_path = os.path.join(output_dir, "psnr_analysis.png")
+    save_path = os.path.join(BASE_DIR,output_dir, "psnr_analysis.png")
     plt.savefig(save_path)
     print(f"PSNR 數線圖已儲存：{save_path}")
     plt.show()
@@ -90,12 +128,12 @@ def save_ssim_plot(ssim_value, output_dir):
     plt.title("SSIM Analysis")
     plt.legend()
 
-    save_path = os.path.join(output_dir, "ssim_analysis.png")
+    save_path = os.path.join(BASE_DIR,output_dir, "ssim_analysis.png")
     plt.savefig(save_path)
     print(f"SSIM 數線圖已儲存：{save_path}")
     plt.show()
 
-def loss_curve(epochs, loss_history, output_dir):
+def loss_curve(epochs, loss_history, output_dir="graph_outputs"):
     print("模型與 loss 已儲存到 vae.pth")
     # 繪製 Loss 圖
     plt.figure(figsize=(8, 6))
@@ -105,10 +143,10 @@ def loss_curve(epochs, loss_history, output_dir):
     plt.title("Training Loss Curve")
     plt.legend()
     plt.grid()
-    plt.savefig(os.path.join(output_dir, "loss_curve.png"))
+    plt.savefig(os.path.join(BASE_DIR,output_dir, "loss_curve.png"))
     plt.show()
-    
-def learning_rate(epochs, lr_history, output_dir):
+
+def learning_rate(epochs, lr_history, output_dir="graph_outputs"):
     # 繪製 Learning Rate 圖
     plt.figure(figsize=(8, 6))
     plt.plot(range(1, epochs + 1), lr_history, label="Learning Rate", color="blue")
@@ -117,7 +155,7 @@ def learning_rate(epochs, lr_history, output_dir):
     plt.title("Learning Rate Curve")
     plt.legend()
     plt.grid()
-    plt.savefig(os.path.join(output_dir, "lr_curve.png"))
+    plt.savefig(os.path.join(BASE_DIR,output_dir, "lr_curve.png"))
     plt.show()
     
 def show_image(original_image, reconstructed_from_combined,size):

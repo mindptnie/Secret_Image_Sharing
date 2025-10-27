@@ -194,6 +194,9 @@ def dequantize_latent(latent_quantized, min_val=-3, max_val=3):
     return latent
 
 def create_shares(latent_dims, n, r, output_dir="shares"):
+    if not os.path.exists(os.path.join(BASE_DIR,output_dir)):
+        os.makedirs(os.path.join(BASE_DIR,output_dir))
+        
     sample_latent = randn(latent_dims)
     latent_quantized = quantize_latent(sample_latent)
     shares, shares_extra = polynomial(latent_quantized, n=n, r=r)
@@ -216,9 +219,7 @@ def create_shares(latent_dims, n, r, output_dir="shares"):
         else:
             raise ValueError("Unsupported latent_dim for reshape")
         print(f"Create Share {i+1} shape: {share_image.shape}")
-        
-        if not os.path.exists(os.path.join(BASE_DIR,output_dir)):
-            os.makedirs(os.path.join(BASE_DIR,output_dir))
+
             
         cv2.imwrite(os.path.join(BASE_DIR,output_dir, f"share_{i+1}.png"), share_image)
 

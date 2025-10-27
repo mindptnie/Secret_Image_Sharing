@@ -79,7 +79,7 @@ class VariationalAutoencoder(t_nn.Module):
                 optimizer.zero_grad()
                 mu, log_var, latent, reconstructed = self(img) 
 
-                assert reconstructed.shape == img.shape, f"Shape mismatch: {reconstructed.shape} vs {img.shape}"
+                util.vae_loss_function(reconstructed, img, mu, log_var)
 
                 loss = util.vae_loss_function(reconstructed, img, mu, log_var) 
                 loss.backward()
@@ -104,5 +104,8 @@ class VariationalAutoencoder(t_nn.Module):
         total_end_time = time.time()
         total_time = total_end_time - total_start_time
         print(f"Total training time: {total_time:.2f} seconds")
+
+        plot_graphs.loss_curve(epochs, loss_history)
+        plot_graphs.learning_rate(epochs, lr_history)
 
         pass

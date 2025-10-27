@@ -1,6 +1,8 @@
 import math
 import os
 import cv2
+import glob
+
 import torch.nn as t_nn
 from torch import sum as t_sum
 import torch.utils.data
@@ -15,7 +17,7 @@ def vae_loss_function(reconstructed, original, mu, log_var):
     return recon_loss + 0.0001 * kl_loss  # 調整 KL loss 權重
 
 # 預處理影像
-def preprocess_image(image_path, image_size=256*256, output_dir="preprocessed"):
+def preprocess_image(image_path:str, image_size=256*256, output_dir="preprocessed"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     size = int(math.sqrt(image_size))
@@ -29,6 +31,15 @@ def preprocess_image(image_path, image_size=256*256, output_dir="preprocessed"):
     cv2.imwrite(os.path.join(output_dir, "grayscale_image.png"), img_resized)
     return ToTensor()(img_resized).view(-1, image_size).float()
 
-def create_directory(path):
+def create_directory(path:str):
     if not os.path.exists(path):
         os.makedirs(path)
+        
+def delete_image(image_path:str):
+    for img in glob.glob(os.path.join(image_path, f"*.png")):
+        os.remove(img)
+
+def get_images_in_paths(folder_path:str,img_name="*.png"):
+    if img_name!="*.png":
+        img_name = f"{img_name}_*.png"
+    return glob.glob(os.path.join(folder_path, img_name))
