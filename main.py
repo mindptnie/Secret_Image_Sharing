@@ -33,16 +33,18 @@ image_name = "baboon"
 
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 1
-batch_size = 32
-image_size = 256 * 256
+epochs = 100
+batch_size = 256
+image_size = (128, 128)
+
+# size for training
+virtual_dataset = 10000
 
 # Shamir's Secret Sharing parameters
 n_shares = 6  # Share count
 r_threshold = 5  # Reconstruction threshold
 
 #^^^^^^ Configuration ^^^^^^#
-size = int(math.sqrt(image_size))
 
 device = t_device("cuda" if t_cuda.is_available() else "cpu")
 print(f"Using device: {device}")  # 應該顯示 "cuda"
@@ -65,12 +67,19 @@ def main():
     train_image_paths = util.get_images_in_paths(train_data_path, image_name)
     test_image_paths = util.get_images_in_paths(test_data_path, image_name)
 
-    print(f"Found {len(train_image_paths)} training images.")
+    base_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
+    print(f"Use image {image_name}: {base_image_path}")
+    
+    train_dataset = ds.CustomDataset(base_image_path, virtual_dataset, image_size)
+    print(f"Created virtual dataset with {len(train_dataset)} images.")
 
-    train_dataset = ds.CustomDataset(train_image_paths)
-
-    train_loader = train_dataset.get_dataloader(batch_size=batch_size, shuffle=True)
-
+    # 6. สร้าง DataLoader (แนะนำให้เพิ่ม num_workers)
+    train_loader = train_dataset.get_dataloader(
+        batch_size=batch_size, 
+        shuffle=True, 
+        num_workers=8  # (ปรับตาม CPU ของคุณ)
+    )
+    
     start.record()
     
     # Initialize VAE model, optimizer, and scheduler
@@ -90,7 +99,7 @@ def main():
     vae_model.train_vae(optimizer, scheduler, train_loader, epochs, device)
     end.record()
     t_cuda.synchronize()
-    print(f"Training time: {start.elapsed_time(end)} ms")
+    print(f"Training time: {start.elapsed_time(end)/60000} mins")
 
     # Test Image
     #test_image = preprocess_image(test_image_paths[0])
@@ -110,9 +119,9 @@ def main():
         print(f"重建的 latent: {combined_latent[:5]}")
         # 顯示影像
     
-    plot_graphs.show_image(test_image, reconstructed_from_combined,size)
+    # plot_graphs.show_image(test_image, reconstructed_from_combined,image_size)
     # 儲存重建影像
-    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_from_combined.view(size, size).cpu().numpy() * 255)
+    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_from_combined.view(image_size[0], image_size[1]).cpu().numpy() * 255)
     #print(next(vae.parameters()).device)  # 應該顯示 "cuda:0"
     #print(f"combined_latent device: {combined_latent.device}")  # 應該顯示 "cuda:0"
     

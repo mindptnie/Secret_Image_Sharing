@@ -167,17 +167,14 @@ def learning_rate(epochs, lr_history, output_dir="graph_outputs"):
     
     plt.show()
 
-def show_image(original_image, reconstructed_from_combined, size, output_dir="graph_outputs"):
+def show_image(original_image, reconstructed_from_combined, image_size:tuple, output_dir="graph_outputs"):
     
     plt.subplot(1, 2, 1)
-    plt.imshow(original_image.view(size, size).cpu().numpy(), cmap="gray")
+    plt.imshow(original_image.view(image_size[0], image_size[1]).cpu().numpy(), cmap="gray")
     plt.title("Original Image")
 
     plt.subplot(1, 2, 2)
-    plt.imshow(reconstructed_from_combined.view(size, size).cpu().numpy(), cmap="gray")
+    plt.imshow(reconstructed_from_combined.view(image_size[0], image_size[1]).cpu().numpy(), cmap="gray")
     plt.title("Reconstructed from Shares")
 
-    save_path = os.path.join(BASE_DIR,output_dir, "comparison_original_reconstructed.png")
-    plt.savefig(save_path)
-    print(f"original vs reconstructed :{save_path}")
     plt.show()

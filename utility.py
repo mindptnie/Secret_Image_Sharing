@@ -17,19 +17,18 @@ def vae_loss_function(reconstructed, original, mu, log_var):
     return recon_loss + 0.0001 * kl_loss  # 調整 KL loss 權重
 
 # 預處理影像
-def preprocess_image(image_path:str, image_size=256*256, output_dir="preprocessed"):
+def preprocess_image(image_path:str, image_size=(256,256), output_dir="preprocessed"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    size = int(math.sqrt(image_size))
 
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         print(f"Failed to load image: {image_path}")
         return None
-    
-    img_resized = cv2.resize(img, (size, size))
+
+    img_resized = cv2.resize(img, (image_size[0], image_size[1]))
     cv2.imwrite(os.path.join(output_dir, "grayscale_image.png"), img_resized)
-    return ToTensor()(img_resized).view(-1, image_size).float()
+    return ToTensor()(img_resized).view(-1, image_size[0] * image_size[1]).float()
 
 def create_directory(path:str):
     if not os.path.exists(path):

@@ -204,23 +204,6 @@ def create_shares(latent, n, r, output_dir="shares", group_polynomial=False):
         shares, shares_extra = polynomial(latent_quantized, n=n, r=r)
 
     shares_with_positions = []
-    # for i, share in enumerate(shares):
-    #     share_tensor = tensor(share, dtype=int32)
-    #     position = (i + 1,)  
-    #     shares_with_positions.append((share_tensor, position, shares_extra[i]))
-    #     if latent_dims == 256:
-    #         share_image = share.reshape(16, 16).astype(np.uint8)
-    #     elif latent_dims == 512:
-    #         share_image = share.reshape(16, 32).astype(np.uint8)
-    #     elif latent_dims == 1024:
-    #         share_image = share.reshape(32, 32).astype(np.uint8)
-    #     elif latent_dims == 2048:
-    #         share_image = share.reshape(32, 64).astype(np.uint8)
-    #     elif latent_dims == 4096:
-    #         share_image = share.reshape(64, 64).astype(np.uint8)
-    #     else:
-    #         raise ValueError("Unsupported latent_dim for reshape")
-    #     print(f"Create Share {i+1} shape: {share_image.shape}")
     for i, share in enumerate(shares):
         share_tensor = tensor(share, dtype=int32)
         position = (i + 1,)  

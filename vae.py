@@ -9,14 +9,12 @@ import utility as util
 import graph as plot_graphs
 
 class VariationalAutoencoder(t_nn.Module):
-    def __init__(self, image_size: int, latent_dim: int):
+    def __init__(self, image_size:tuple, latent_dim: int):
         super().__init__()
         self.image_size = image_size
-        self.latent_dim = latent_dim
-        
         # 編碼器 (Encoder)
         self.encoder = t_nn.Sequential(
-            t_nn.Linear(image_size, 2048),
+            t_nn.Linear(image_size[0] * image_size[1], 2048),
             t_nn.ReLU(),
             t_nn.Linear(2048, 1024),
             t_nn.ReLU(),
@@ -31,7 +29,7 @@ class VariationalAutoencoder(t_nn.Module):
             t_nn.ReLU(),
             t_nn.Linear(1024, 2048),
             t_nn.ReLU(),
-            t_nn.Linear(2048, image_size),
+            t_nn.Linear(2048, image_size[0] * image_size[1]),
             t_nn.Sigmoid(),  # 限制輸出在 [0,1]
         )
 
@@ -43,7 +41,7 @@ class VariationalAutoencoder(t_nn.Module):
         return mu + eps * std  # reparameterization trick
 
     def forward(self, x):
-        x = x.view(-1, self.image_size)  # 攤平成 1D
+        x = x.view(-1, self.image_size[0] * self.image_size[1])  # 攤平成 1D
         
         encoded = self.encoder(x)
         
@@ -56,8 +54,7 @@ class VariationalAutoencoder(t_nn.Module):
         
         #新增
         # **確保輸出 shape 為 `[batch_size, 1, 128, 128]`**
-        size = int(math.sqrt(self.image_size))
-        reconstructed = reconstructed.view(-1, 1, size, size)
+        reconstructed = reconstructed.view(-1, 1, self.image_size[0], self.image_size[1])
         # reconstructed = reconstructed.view(-1, 1, 256, 256)
         return mu, log_var, z, reconstructed
     
@@ -77,9 +74,8 @@ class VariationalAutoencoder(t_nn.Module):
             for data in progress_bar:
                 if data is None:
                     continue
-                
-                size = int(math.sqrt(self.image_size))
-                img = data.view(-1, 1, size, size).to(device)
+
+                img = data.view(-1, 1, self.image_size[0], self.image_size[1]).to(device)
 
                 optimizer.zero_grad()
                 mu, log_var, latent, reconstructed = self.forward(img) 
@@ -87,11 +83,9 @@ class VariationalAutoencoder(t_nn.Module):
                 loss = util.vae_loss_function(reconstructed, img, mu, log_var) 
                 loss.backward()
                 optimizer.step()
-                
-                batch_loss = loss.item()
-                epoch_loss += batch_loss
+                epoch_loss += loss.item()
 
-                progress_bar.set_postfix(Loss=f"{batch_loss:.4f}")
+                progress_bar.set_postfix(Loss=f"{epoch_loss:.4f}")
             
             avg_loss = epoch_loss / len(train_loader)
             loss_history.append(avg_loss)
@@ -107,6 +101,7 @@ class VariationalAutoencoder(t_nn.Module):
         total_end_time = time.time()
         total_time = total_end_time - total_start_time
         print(f"Total training time: {total_time:.2f} seconds")
+        print(f"Total training time: {total_time / 60:.2f} mins")
         
         print(f"epochs: {epochs}")
         print(f"loss_history: {loss_history}")
