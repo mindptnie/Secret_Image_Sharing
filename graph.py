@@ -83,7 +83,7 @@ def plot_comparison(img1, img2, mse, psnr, ssim, output_dir):
     save_path = os.path.join(BASE_DIR,output_dir, "comparison.png")
     plt.savefig(save_path)
     print(f"比較圖已儲存：{save_path}")
-    # plt.show()
+    plt.show()
 
 def save_mse_plot(mse, output_dir):
     """ 儲存 MSE 數線圖 """

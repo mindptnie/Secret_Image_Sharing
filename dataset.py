@@ -5,29 +5,25 @@ from PIL import Image
 import utility as util
 
 class CustomDataset(Dataset):
-    def __init__(self, image_paths:str, dataset_size:int, target_size:tuple=(256,256)):
-        self.image_paths = image_paths
+    def __init__(self, base_image_path:str, dataset_size:int, target_size:tuple=(256,256)):
+        self.image_paths = base_image_path
         self.dataset_size = dataset_size
         self.target_size = target_size
         self.image_size_flat = target_size[0] * target_size[1]
         try:
-            self.base_image = Image.open(image_paths).convert('L')
+            self.base_image = Image.open(base_image_path).convert('L')
         except FileNotFoundError:
-            raise FileNotFoundError(f"Not Found: {image_paths}")
+            raise FileNotFoundError(f"Not Found: {base_image_path}")
         self.transform = transforms.Compose([
-            # --- Geometric Augmentations  ---
             
-            # --- Random Resized Crop ---
-            transforms.RandomResizedCrop(self.target_size, scale=(0.85, 1.0), ratio=(0.9, 1.1)),
+            # "Scaling" & "Cropping"
+            transforms.RandomResizedCrop(self.target_size, scale=(0.8, 1.0), ratio=(0.9, 1.1)),
             
-            # --- Flipping ---
+            # "Flipping"
             transforms.RandomHorizontalFlip(p=0.5),
             
-            # --- Rotation ---
+            # "Rotation"
             transforms.RandomRotation(degrees=10),
-            
-            # --- Color/Photometric Augmentations ---
-            transforms.ColorJitter(brightness=0.2, contrast=0.2),
             
             # --- Conversion ---
             transforms.ToTensor(),

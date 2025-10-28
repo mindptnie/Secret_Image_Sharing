@@ -8,13 +8,13 @@ from torch import sum as t_sum
 import torch.utils.data
 from torchvision.transforms import ToTensor
 
-def vae_loss_function(reconstructed, original, mu, log_var):
+def vae_loss_function(reconstructed, original, mu, log_var, lambda_weight:float=0.0001):
      # **確保 reconstructed 的 shape 和 original 一樣**
     assert reconstructed.shape == original.shape, f"Shape mismatch: {reconstructed.shape} vs {original.shape}"
 
     recon_loss = t_nn.MSELoss()(reconstructed, original) # GPU 計算
     kl_loss = -0.5 * t_sum(1 + log_var - mu.pow(2) - log_var.exp())  # KL 散度  # GPU 計算
-    return recon_loss + 0.0001 * kl_loss  # 調整 KL loss 權重
+    return recon_loss + lambda_weight * kl_loss  # 調整 KL loss 權重
 
 # 預處理影像
 def preprocess_image(image_path:str, image_size=(256,256), output_dir="preprocessed"):

@@ -34,15 +34,15 @@ image_name = "baboon"
 # Parameters
 latent_dim = 1024  # latent dimension
 epochs = 100
-batch_size = 256
-image_size = (128, 128)
-
+batch_size = 32
+image_size = (256, 256)
+lambda_weight = 0.0001  # weight for KL divergence loss
 # size for training
 virtual_dataset = 10000
 
 # Shamir's Secret Sharing parameters
-n_shares = 6  # Share count
-r_threshold = 5  # Reconstruction threshold
+n_shares = 5  # Share count
+r_threshold = 3  # Reconstruction threshold
 
 #^^^^^^ Configuration ^^^^^^#
 
@@ -70,7 +70,7 @@ def main():
     base_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
     print(f"Use image {image_name}: {base_image_path}")
     
-    train_dataset = ds.CustomDataset(base_image_path, virtual_dataset, image_size)
+    train_dataset = ds.CustomDataset(base_image_path, virtual_dataset, target_size=image_size)
     print(f"Created virtual dataset with {len(train_dataset)} images.")
 
     # 6. สร้าง DataLoader (แนะนำให้เพิ่ม num_workers)
@@ -82,21 +82,19 @@ def main():
     
     start.record()
     
-    # Initialize VAE model, optimizer, and scheduler
+    # Initialize VAE model 
     vae_model = vae_module.VariationalAutoencoder(image_size, latent_dim)
-    vae_model = vae_model.to(device)  # 把模型搬到 GPU (Move to device)
+    vae_model = vae_model.to(device)
     
-    #optimizer = optim.Adam(vae.parameters(), lr=0.0022111, weight_decay=1e-5)
-    #optimizer = optim.Adam(vae.parameters(), lr=0.0005, weight_decay=1e-5) #***
-    optimizer = t_optim.Adam(vae_model.parameters(), lr=0.001, weight_decay=1e-5) 
-    #optimizer = optim.Adam(vae.parameters(), lr=0.0005, weight_decay=1e-5)
+    optimizer = t_optim.Adam(
+        vae_model.parameters(), 
+        lr=0.001, 
+        weight_decay=1e-5) 
     
-    # Learning rate scheduler
     scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     # Train VAE
-
-    vae_model.train_vae(optimizer, scheduler, train_loader, epochs, device)
+    vae_model.train_vae(optimizer, scheduler, train_loader, epochs, device, lambda_weight=lambda_weight)
     end.record()
     t_cuda.synchronize()
     print(f"Training time: {start.elapsed_time(end)/60000} mins")
@@ -110,8 +108,11 @@ def main():
         sample_latent = t_randn(latent_dim)
 
         # 生成 shares
-        shares_with_positions = sss.create_shares(sample_latent, n_shares, r_threshold)
-        
+        shares_with_positions = sss.create_shares(
+                    latent.squeeze(0).cpu(), 
+                    n_shares, 
+                    r_threshold
+                )        
         combined_latent = sss.combine_shares(shares_with_positions, r_threshold).unsqueeze(0).to(device)
 
         reconstructed_from_combined = vae_model.decoder(combined_latent.to(device))  # 確保 latent vector 也在 GPU
@@ -119,11 +120,7 @@ def main():
         print(f"重建的 latent: {combined_latent[:5]}")
         # 顯示影像
     
-    # plot_graphs.show_image(test_image, reconstructed_from_combined,image_size)
-    # 儲存重建影像
     write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_from_combined.view(image_size[0], image_size[1]).cpu().numpy() * 255)
-    #print(next(vae.parameters()).device)  # 應該顯示 "cuda:0"
-    #print(f"combined_latent device: {combined_latent.device}")  # 應該顯示 "cuda:0"
     
     plot_graphs.calculate_statistics(process_path, results_path)
     

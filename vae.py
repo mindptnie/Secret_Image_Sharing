@@ -59,7 +59,7 @@ class VariationalAutoencoder(t_nn.Module):
         return mu, log_var, z, reconstructed
     
     # 訓練 VAE (含學習率調度)
-    def train_vae(self, optimizer, scheduler, train_loader, epochs, device):
+    def train_vae(self, optimizer, scheduler, train_loader, epochs, device, lambda_weight:float=0.0001):
         loss_history = []
         lr_history = []
         
@@ -80,7 +80,7 @@ class VariationalAutoencoder(t_nn.Module):
                 optimizer.zero_grad()
                 mu, log_var, latent, reconstructed = self.forward(img) 
 
-                loss = util.vae_loss_function(reconstructed, img, mu, log_var) 
+                loss = util.vae_loss_function(reconstructed, img, mu, log_var, lambda_weight=lambda_weight) 
                 loss.backward()
                 optimizer.step()
                 epoch_loss += loss.item()
