@@ -2,6 +2,7 @@ import math
 import os
 import cv2
 import glob
+from PIL import Image
 
 import torch.nn as t_nn
 from torch import sum as t_sum
@@ -17,17 +18,11 @@ def vae_loss_function(reconstructed, original, mu, log_var, lambda_weight:float=
     return recon_loss + lambda_weight * kl_loss  # 調整 KL loss 權重
 
 # 預處理影像
-def preprocess_image(image_path:str, image_size=(256,256), output_dir="preprocessed"):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+def preprocess_image(image:Image, image_size=(256,256), output_dir="preprocessed"):
+    create_directory(output_dir)
 
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if img is None:
-        print(f"Failed to load image: {image_path}")
-        return None
-
-    img_resized = cv2.resize(img, (image_size[0], image_size[1]))
-    cv2.imwrite(os.path.join(output_dir, "grayscale_image.png"), img_resized)
+    img_resized = image.resize((image_size[0], image_size[1]))
+    img_resized.save(os.path.join(output_dir, "grayscale_image.png"))
     return ToTensor()(img_resized).view(-1, image_size[0] * image_size[1]).float()
 
 def create_directory(path:str):
