@@ -25,6 +25,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Directories
 process_path = "preprocessed"
+graphs_path = "graph_outputs"
 results_path = "results"
 data_path = "Pic"
 
@@ -52,6 +53,7 @@ def main():
     # Create necessary directories
     util.create_directory(results_path)
     util.create_directory(data_path)
+    util.create_directory(graphs_path)
     
     # Delete previous shares
     util.delete_image(os.path.join(BASE_DIR, "shares"))
