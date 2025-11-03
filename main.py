@@ -1,4 +1,3 @@
-
 import math
 import os
 import glob
@@ -10,6 +9,9 @@ from torch import device as t_device
 from torch import no_grad as t_no_grad
 from torch import randn as t_randn
 from cv2 import imwrite as write
+from PIL import Image
+import torchvision.transforms as transforms
+import torch
 
 import vae as vae_module
 
@@ -49,7 +51,7 @@ r_threshold = 3  # Reconstruction threshold
 #^^^^^^ Configuration ^^^^^^#
 
 device = t_device("cuda" if t_cuda.is_available() else "cpu")
-print(f"Using device: {device}")  # 應該顯示 "cuda"
+print(f"Using device: {device}")
 
 def main():
 
@@ -109,10 +111,10 @@ def main():
     test_image = test_dataset.__getitem__(0).to(device)  # 讓測試影像也在 GPU
 
     with t_no_grad():
-        mu, log_var, latent, reconstructed = vae_model.forward(test_image)  # 加 batch 維度
+        mu, log_var, latent, reconstructed = vae_model.forward(test_image)
         sample_latent = t_randn(latent_dim)
 
-        # 生成 shares
+        # Generate shares
         shares_with_positions = sss.create_shares(
                     latent.squeeze(0).cpu(), 
                     n_shares, 
@@ -120,12 +122,17 @@ def main():
                 )        
         combined_latent = sss.combine_shares(shares_with_positions, r_threshold).unsqueeze(0).to(device)
 
-        reconstructed_from_combined = vae_model.decoder(combined_latent.to(device))  # 確保 latent vector 也在 GPU
+        # FIXED: Use decoder_input layer to project latent to decoder input shape
+        decoder_input = vae_model.decoder_input(combined_latent)
+        decoder_input = decoder_input.view(-1, 256, vae_model.final_conv_size, vae_model.final_conv_size)
+        reconstructed_from_combined = vae_model.decoder(decoder_input)
+        
         print(f"原始 latent: {sample_latent[:5]}")
         print(f"重建的 latent: {combined_latent[:5]}")
-        # 顯示影像
     
-    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_from_combined.view(image_size[0], image_size[1]).cpu().numpy() * 255)
+    # Save reconstructed image - it's already [1, 1, 256, 256]
+    reconstructed_image = reconstructed_from_combined.squeeze().cpu().numpy() * 255
+    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_image)
     
     plot_graphs.calculate_statistics(process_path, results_path)
     

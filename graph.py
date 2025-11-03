@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as ssim
+import utility as util
 # Root directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

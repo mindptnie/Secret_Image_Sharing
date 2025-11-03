@@ -4,62 +4,91 @@ from tqdm import tqdm
 from torch import exp as t_exp
 from torch import randn_like as t_randn_like
 import torch.nn as t_nn
+import torch
 
 import utility as util
 import graph as plot_graphs
 
 class VariationalAutoencoder(t_nn.Module):
-    def __init__(self, image_size:tuple, latent_dim: int):
+    def __init__(self, image_size: tuple, latent_dim: int):
         super().__init__()
         self.image_size = image_size
-        # 編碼器 (Encoder)
+        self.latent_dim = latent_dim
+        
+        # Calculate the size after convolutions
+        # For 256x256: 256 -> 128 -> 64 -> 32 -> 16
+        self.final_conv_size = image_size[0] // 16
+        self.final_feature_dim = 256 * self.final_conv_size * self.final_conv_size
+        
+        # Encoder - Convolutional layers
         self.encoder = t_nn.Sequential(
-            t_nn.Linear(image_size[0] * image_size[1], 2048),
+            # Input: [batch, 1, 256, 256]
+            t_nn.Conv2d(1, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
+            t_nn.BatchNorm2d(32),
             t_nn.ReLU(),
-            t_nn.Linear(2048, 1024),
+            
+            t_nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),  # -> [batch, 64, 64, 64]
+            t_nn.BatchNorm2d(64),
+            t_nn.ReLU(),
+            
+            t_nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
+            t_nn.BatchNorm2d(128),
+            t_nn.ReLU(),
+            
+            t_nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # -> [batch, 256, 16, 16]
+            t_nn.BatchNorm2d(256),
             t_nn.ReLU(),
         )
         
-        self.mu_layer = t_nn.Linear(1024, latent_dim)  # 平均值 (mu)
-        self.log_var_layer = t_nn.Linear(1024, latent_dim)  # log(方差) (log_var)
-
-        # 解碼器 (Decoder)
+        # Latent space layers
+        self.mu_layer = t_nn.Linear(self.final_feature_dim, latent_dim)
+        self.log_var_layer = t_nn.Linear(self.final_feature_dim, latent_dim)
+        
+        # Projection from latent to decoder input
+        self.decoder_input = t_nn.Linear(latent_dim, self.final_feature_dim)
+        
+        # Decoder - Transposed Convolutional layers
         self.decoder = t_nn.Sequential(
-            t_nn.Linear(latent_dim, 1024),
+            # Input: [batch, 256, 16, 16]
+            t_nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
+            t_nn.BatchNorm2d(128),
             t_nn.ReLU(),
-            t_nn.Linear(1024, 2048),
+            
+            t_nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # -> [batch, 64, 64, 64]
+            t_nn.BatchNorm2d(64),
             t_nn.ReLU(),
-            t_nn.Linear(2048, image_size[0] * image_size[1]),
-            t_nn.Sigmoid(),  # 限制輸出在 [0,1]
+            
+            t_nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
+            t_nn.BatchNorm2d(32),
+            t_nn.ReLU(),
+            
+            t_nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1),  # -> [batch, 1, 256, 256]
+            t_nn.Sigmoid(),
         )
-
-        pass
 
     def reparameterize(self, mu, log_var):
-        std = t_exp(0.5 * log_var)  # 計算標準差
-        eps = t_randn_like(std)  # 標準正態分布的隨機數
-        return mu + eps * std  # reparameterization trick
+        std = t_exp(0.5 * log_var)
+        eps = t_randn_like(std)
+        return mu + eps * std
 
     def forward(self, x):
-        x = x.view(-1, self.image_size[0] * self.image_size[1])  # 攤平成 1D
+        # Encoder
+        encoded = self.encoder(x)  # [batch, 256, 16, 16]
+        encoded_flat = encoded.view(-1, self.final_feature_dim)  # Flatten
         
-        encoded = self.encoder(x)
-        
-        mu = self.mu_layer(encoded)
-        log_var = self.log_var_layer(encoded)
-        
+        # Latent space
+        mu = self.mu_layer(encoded_flat)
+        log_var = self.log_var_layer(encoded_flat)
         z = self.reparameterize(mu, log_var)
         
-        reconstructed = self.decoder(z)
+        # Decoder
+        decoder_input = self.decoder_input(z)
+        decoder_input = decoder_input.view(-1, 256, self.final_conv_size, self.final_conv_size)
+        reconstructed = self.decoder(decoder_input)
         
-        #新增
-        # **確保輸出 shape 為 `[batch_size, 1, 128, 128]`**
-        reconstructed = reconstructed.view(-1, 1, self.image_size[0], self.image_size[1])
-        # reconstructed = reconstructed.view(-1, 1, 256, 256)
         return mu, log_var, z, reconstructed
     
-    # 訓練 VAE (含學習率調度)
-    def train_vae(self, optimizer, scheduler, train_loader, epochs, device, lambda_weight:float=0.0001):
+    def train_vae(self, optimizer, scheduler, train_loader, epochs, device, lambda_weight: float = 0.0001):
         loss_history = []
         lr_history = []
         
@@ -78,9 +107,9 @@ class VariationalAutoencoder(t_nn.Module):
                 img = data.view(-1, 1, self.image_size[0], self.image_size[1]).to(device)
 
                 optimizer.zero_grad()
-                mu, log_var, latent, reconstructed = self.forward(img) 
+                mu, log_var, latent, reconstructed = self.forward(img)
 
-                loss = util.vae_loss_function(reconstructed, img, mu, log_var, lambda_weight=lambda_weight) 
+                loss = util.vae_loss_function(reconstructed, img, mu, log_var, lambda_weight=lambda_weight)
                 loss.backward()
                 optimizer.step()
                 epoch_loss += loss.item()
@@ -109,5 +138,3 @@ class VariationalAutoencoder(t_nn.Module):
 
         plot_graphs.loss_curve(epochs, loss_history)
         plot_graphs.learning_rate(epochs, lr_history)
-
-        pass
