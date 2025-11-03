@@ -11,6 +11,7 @@ class CustomDataset(Dataset):
         self.image_paths = []
         self.target_size = target_size
         self.image_size_flat = target_size[0] * target_size[1]
+        print(root_dir)
 
         supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
         # Gather all image paths

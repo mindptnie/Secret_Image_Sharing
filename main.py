@@ -10,6 +10,7 @@ from torch import device as t_device
 from torch import no_grad as t_no_grad
 from torch import randn as t_randn
 from cv2 import imwrite as write
+from PIL import Image
 
 import vae as vae_module
 
@@ -27,13 +28,14 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 process_path = "preprocessed"
 results_path = "results"
 data_path = "Pic"
+output_dir = "graph_outputs"
 
 # Name of the image folder
 image_name = "baboon"
 
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 100
+epochs = 20
 batch_size = 32
 image_size = (256, 256)
 lambda_weight = 0.0001  # weight for KL divergence loss
@@ -52,6 +54,7 @@ def main():
     # Create necessary directories
     util.create_directory(results_path)
     util.create_directory(data_path)
+    util.create_directory(output_dir)
     
     # Delete previous shares
     util.delete_image(os.path.join(BASE_DIR, "shares"))
@@ -68,7 +71,7 @@ def main():
     train_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
     print(f"Use image {image_name}: {train_image_path}")
     
-    train_dataset = ds.CustomDataset(train_image_paths, target_size=image_size)
+    train_dataset = ds.CustomDataset(train_data_path, target_size=image_size)
     # train_dataset = ds.CustomDataset(train_image_path, virtual_dataset, target_size=image_size)
     # print(f"Created virtual dataset with {len(train_dataset)} images.")
 
@@ -102,6 +105,12 @@ def main():
     print(f"Testing on image: {test_image_path}")
     # test_image = util.preprocess_image(test_image_paths[0]).to(device)
     # test_image = util.preprocess_image(test_image_path, image_size).to(device)  # 讓測試影像也在 GPU
+
+    path_to_image = test_image_paths[0] 
+    # 2. โหลดภาพจากเส้นทางไฟล์
+    test_image_object = Image.open(path_to_image).convert('L') 
+    # 3. ส่งออบเจกต์ภาพเข้าฟังก์ชัน preprocess_image
+    test_image = util.preprocess_image(test_image_object).to(device)
 
     with t_no_grad():
         mu, log_var, latent, reconstructed = vae_model.forward(test_image)  # 加 batch 維度
