@@ -1,4 +1,3 @@
-
 import math
 import os
 import glob
@@ -11,6 +10,8 @@ from torch import no_grad as t_no_grad
 from torch import randn as t_randn
 from cv2 import imwrite as write
 from PIL import Image
+import torchvision.transforms as transforms
+import torch
 
 import vae as vae_module
 
@@ -31,14 +32,14 @@ data_path = "Pic"
 output_dir = "graph_outputs"
 
 # Name of the image folder
-image_name = "baboon"
+image_name = "cat_dog"
 
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 20
-batch_size = 32
+epochs = 1
+batch_size = 320
 image_size = (256, 256)
-lambda_weight = 0.0001  # weight for KL divergence loss
+lambda_weight = 0.000001  # weight for KL divergence loss
 
 # Shamir's Secret Sharing parameters
 n_shares = 5  # Share count
@@ -47,7 +48,7 @@ r_threshold = 3  # Reconstruction threshold
 #^^^^^^ Configuration ^^^^^^#
 
 device = t_device("cuda" if t_cuda.is_available() else "cpu")
-print(f"Using device: {device}")  # 應該顯示 "cuda"
+print(f"Using device: {device}")
 
 def main():
 
@@ -72,8 +73,6 @@ def main():
     print(f"Use image {image_name}: {train_image_path}")
     
     train_dataset = ds.CustomDataset(train_data_path, target_size=image_size)
-    # train_dataset = ds.CustomDataset(train_image_path, virtual_dataset, target_size=image_size)
-    # print(f"Created virtual dataset with {len(train_dataset)} images.")
 
     train_loader = train_dataset.get_dataloader(
         batch_size=batch_size, 
@@ -100,23 +99,28 @@ def main():
     t_cuda.synchronize()
     print(f"Training time: {start.elapsed_time(end)/60000} mins")
 
-    # Test Image
+    # ============ FIXED TEST IMAGE SECTION ============
     test_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
     print(f"Testing on image: {test_image_path}")
-    # test_image = util.preprocess_image(test_image_paths[0]).to(device)
-    # test_image = util.preprocess_image(test_image_path, image_size).to(device)  # 讓測試影像也在 GPU
-
-    path_to_image = test_image_paths[0] 
-    # 2. โหลดภาพจากเส้นทางไฟล์
-    test_image_object = Image.open(path_to_image).convert('L') 
-    # 3. ส่งออบเจกต์ภาพเข้าฟังก์ชัน preprocess_image
-    test_image = util.preprocess_image(test_image_object).to(device)
+    
+    # Load and preprocess image correctly for Conv2D
+    test_image_object = Image.open(test_image_path).convert('L')
+    
+    # Define transform to match your image_size
+    transform = transforms.Compose([
+        transforms.Resize(image_size),
+        transforms.ToTensor(),  # Converts to [C, H, W] and scales to [0, 1]
+    ])
+    
+    # Apply transform and add batch dimension
+    test_image = transform(test_image_object).unsqueeze(0).to(device)  # [1, 1, 256, 256]
+    print(f"Test image shape: {test_image.shape}")  # Should print: torch.Size([1, 1, 256, 256])
 
     with t_no_grad():
-        mu, log_var, latent, reconstructed = vae_model.forward(test_image)  # 加 batch 維度
+        mu, log_var, latent, reconstructed = vae_model.forward(test_image)
         sample_latent = t_randn(latent_dim)
 
-        # 生成 shares
+        # Generate shares
         shares_with_positions = sss.create_shares(
                     latent.squeeze(0).cpu(), 
                     n_shares, 
@@ -124,12 +128,17 @@ def main():
                 )        
         combined_latent = sss.combine_shares(shares_with_positions, r_threshold).unsqueeze(0).to(device)
 
-        reconstructed_from_combined = vae_model.decoder(combined_latent.to(device))  # 確保 latent vector 也在 GPU
+        # FIXED: Use decoder_input layer to project latent to decoder input shape
+        decoder_input = vae_model.decoder_input(combined_latent)
+        decoder_input = decoder_input.view(-1, 256, vae_model.final_conv_size, vae_model.final_conv_size)
+        reconstructed_from_combined = vae_model.decoder(decoder_input)
+        
         print(f"原始 latent: {sample_latent[:5]}")
         print(f"重建的 latent: {combined_latent[:5]}")
-        # 顯示影像
     
-    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_from_combined.view(image_size[0], image_size[1]).cpu().numpy() * 255)
+    # Save reconstructed image - it's already [1, 1, 256, 256]
+    reconstructed_image = reconstructed_from_combined.squeeze().cpu().numpy() * 255
+    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_image)
     
     plot_graphs.calculate_statistics(process_path, results_path)
     
