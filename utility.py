@@ -27,7 +27,6 @@ def preprocess_image(image:Image, image_size=(256,256), output_dir="preprocessed
 
 def load_image(image_path:str, image_size:tuple=(256,256)):
     image = Image.open(image_path).convert('L')
-    image = image.resize(image_size)
     return image
 
 def create_directory(path:str):
