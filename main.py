@@ -103,7 +103,7 @@ def main():
     # test_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
     # print(f"Testing on image: {test_image_path}")
     # test_image = util.preprocess_image(test_image_paths[0]).to(device)
-    load_test_image = util.load_image(test_image_paths[0], image_size)
+    load_test_image = util.load_image(test_image_paths[0])
     test_image = util.preprocess_image(load_test_image, image_size).to(device)  # 讓測試影像也在 GPU
 
     with t_no_grad():
