@@ -18,15 +18,23 @@ def vae_loss_function(reconstructed, original, mu, log_var, lambda_weight:float=
     return recon_loss + lambda_weight * kl_loss  # 調整 KL loss 權重
 
 # 預處理影像
-def preprocess_image(image:Image, image_size=(256,256), output_dir="preprocessed"):
+def preprocess_image(image:Image, image_size=(256,256), num_channels:int=1, output_dir="preprocessed"):
     create_directory(output_dir)
 
+    if num_channels == 1:
+        image = image.convert('L')
+        save_name = "grayscale_image.png"
+    else:
+        image = image.convert('RGB')
+        save_name = "rgb_image.png"
+
     img_resized = image.resize((image_size[0], image_size[1]))
-    img_resized.save(os.path.join(output_dir, "grayscale_image.png"))
-    return ToTensor()(img_resized).view(-1, image_size[0] * image_size[1]).float()
+    img_resized.save(os.path.join(output_dir, save_name))
+    
+    return ToTensor()(img_resized).float()
 
 def load_image(image_path:str):
-    image = Image.open(image_path).convert('L')
+    image = Image.open(image_path)
     return image
 
 def create_directory(path:str):
@@ -39,5 +47,5 @@ def delete_image(image_path:str):
 
 def get_images_in_paths(folder_path:str,img_name="*.png"):
     if img_name!="*.png":
-        img_name = f"{img_name}_*.png"
+        img_name = f"{img_name}*.png"
     return glob.glob(os.path.join(folder_path, img_name))

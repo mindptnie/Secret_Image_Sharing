@@ -29,15 +29,18 @@ graphs_path = "graph_outputs"
 results_path = "results"
 data_path = "Pic"
 
-# Name of the image folder
-image_name = "baboon"
+# Name of the image folder  
+image_name = "cat_dog"
 
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 100
+epochs = 1
 batch_size = 32
-image_size = (256, 256)
+image_size = (128, 128)
 lambda_weight = 0.0001  # weight for KL divergence loss
+
+# Image Channels
+img_channels = 1  # 1 = Grayscale images , 3 = RGB images
 
 # Shamir's Secret Sharing parameters
 n_shares = 5  # Share count
@@ -51,6 +54,7 @@ print(f"Using device: {device}")  # 應該顯示 "cuda"
 def main():
 
     # Create necessary directories
+    util.create_directory(process_path)
     util.create_directory(results_path)
     util.create_directory(data_path)
     util.create_directory(graphs_path)
@@ -63,16 +67,17 @@ def main():
     
     train_data_path = os.path.join(BASE_DIR, data_path, image_name, "Training data")
     test_data_path  = os.path.join(BASE_DIR, data_path, image_name, "Testing data")
-
-    train_image_paths = util.get_images_in_paths(train_data_path, image_name)
-    test_image_paths = util.get_images_in_paths(test_data_path, image_name)
-
-    # train_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
-    # print(f"Use image {image_name}: {train_image_path}")
     
-    train_dataset = ds.CustomDataset(train_data_path, target_size=image_size)
-    # train_dataset = ds.CustomDataset(train_image_path, virtual_dataset, target_size=image_size)
-    # print(f"Created virtual dataset with {len(train_dataset)} images.")
+    if not os.path.exists(train_data_path) or not os.path.exists(test_data_path):
+        raise FileNotFoundError(f"Training or Testing data path does not exist. Please check the directory: {train_data_path} or {test_data_path}")
+
+    train_dataset = ds.CustomDataset(root_dir=train_data_path, 
+                                     target_size=image_size,
+                                     num_channels=img_channels)
+    
+    test_dataset = ds.CustomDataset(root_dir=test_data_path, 
+                                     target_size=image_size,
+                                     num_channels=img_channels)
 
     train_loader = train_dataset.get_dataloader(
         batch_size=batch_size, 
@@ -83,8 +88,9 @@ def main():
     start.record()
     
     # Initialize VAE model 
-    vae_model = vae_module.VariationalAutoencoder(image_size, latent_dim)
-    vae_model = vae_model.to(device)
+    vae_model = vae_module.VariationalAutoencoder(image_size=image_size, 
+                                                  latent_dim=latent_dim)
+    vae_model = vae_model.to(device) # Move to GPU
     
     optimizer = t_optim.Adam(
         vae_model.parameters(), 
@@ -100,11 +106,7 @@ def main():
     print(f"Training time: {start.elapsed_time(end)/60000} mins")
 
     # Test Image
-    # test_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
-    # print(f"Testing on image: {test_image_path}")
-    # test_image = util.preprocess_image(test_image_paths[0]).to(device)
-    load_test_image = util.load_image(test_image_paths[0])
-    test_image = util.preprocess_image(load_test_image, image_size).to(device)  # 讓測試影像也在 GPU
+    test_image = test_dataset.__getitem__(0).to(device)  # 讓測試影像也在 GPU
 
     with t_no_grad():
         mu, log_var, latent, reconstructed = vae_model.forward(test_image)  # 加 batch 維度
