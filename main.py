@@ -98,10 +98,10 @@ def main():
     print(f"Training time: {start.elapsed_time(end)/60000} mins")
 
     # Test Image
-    # # test_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
+    # test_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
     # print(f"Testing on image: {test_image_path}")
     # test_image = util.preprocess_image(test_image_paths[0]).to(device)
-    test_image = util.preprocess_image(test_data_path, image_size).to(device)  # 讓測試影像也在 GPU
+    test_image = util.preprocess_image(test_image_paths[0], image_size).to(device)  # 讓測試影像也在 GPU
 
     with t_no_grad():
         mu, log_var, latent, reconstructed = vae_model.forward(test_image)  # 加 batch 維度
