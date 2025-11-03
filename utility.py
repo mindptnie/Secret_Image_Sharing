@@ -25,7 +25,7 @@ def preprocess_image(image:Image, image_size=(256,256), output_dir="preprocessed
     img_resized.save(os.path.join(output_dir, "grayscale_image.png"))
     return ToTensor()(img_resized).view(-1, image_size[0] * image_size[1]).float()
 
-def load_image(image_path:str, image_size:tuple=(256,256)):
+def load_image(image_path:str):
     image = Image.open(image_path).convert('L')
     return image
 
