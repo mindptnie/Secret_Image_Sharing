@@ -10,10 +10,11 @@ import utility as util
 import graph as plot_graphs
 
 class VariationalAutoencoder(t_nn.Module):
-    def __init__(self, image_size: tuple, latent_dim: int):
+    def __init__(self, image_size: tuple, latent_dim: int , num_channels: int =1):
         super().__init__()
         self.image_size = image_size
         self.latent_dim = latent_dim
+        self.num_channels = num_channels
         
         # Calculate the size after convolutions
         # For 256x256: 256 -> 128 -> 64 -> 32 -> 16
@@ -23,7 +24,7 @@ class VariationalAutoencoder(t_nn.Module):
         # Encoder - Convolutional layers
         self.encoder = t_nn.Sequential(
             # Input: [batch, 1, 256, 256]
-            t_nn.Conv2d(1, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
+            t_nn.Conv2d(self.num_channels, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
             t_nn.BatchNorm2d(32),
             t_nn.ReLU(),
             
@@ -62,7 +63,7 @@ class VariationalAutoencoder(t_nn.Module):
             t_nn.BatchNorm2d(32),
             t_nn.ReLU(),
             
-            t_nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1),  # -> [batch, 1, 256, 256]
+            t_nn.ConvTranspose2d(32, self.num_channels, kernel_size=4, stride=2, padding=1),  # -> [batch, 1, 256, 256]
             t_nn.Sigmoid(),
         )
 
@@ -104,7 +105,7 @@ class VariationalAutoencoder(t_nn.Module):
                 if data is None:
                     continue
 
-                img = data.view(-1, 1, self.image_size[0], self.image_size[1]).to(device)
+                img = data.to(device)
 
                 optimizer.zero_grad()
                 mu, log_var, latent, reconstructed = self.forward(img)

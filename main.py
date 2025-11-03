@@ -1,6 +1,6 @@
-import math
 import os
-import glob
+import torch
+import cv2
 
 import torch.cuda as t_cuda
 import torch.optim as t_optim
@@ -8,10 +8,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torch import device as t_device
 from torch import no_grad as t_no_grad
 from torch import randn as t_randn
-from cv2 import imwrite as write
-from PIL import Image
 import torchvision.transforms as transforms
-import torch
 
 import vae as vae_module
 
@@ -37,12 +34,12 @@ image_name = "cat_dog"
 # Parameters
 latent_dim = 1024  # latent dimension
 epochs = 1
-batch_size = 32
-image_size = (128, 128)
+batch_size = 64
+image_size = (256, 256)
 lambda_weight = 0.0001  # weight for KL divergence loss
 
 # Image Channels
-img_channels = 1  # 1 = Grayscale images , 3 = RGB images
+img_channels = 3  # 1 = Grayscale images , 3 = RGB images
 
 # Shamir's Secret Sharing parameters
 n_shares = 5  # Share count
@@ -91,7 +88,8 @@ def main():
     
     # Initialize VAE model 
     vae_model = vae_module.VariationalAutoencoder(image_size=image_size, 
-                                                  latent_dim=latent_dim)
+                                                  latent_dim=latent_dim,
+                                                  num_channels=img_channels)
     vae_model = vae_model.to(device) # Move to GPU
     
     optimizer = t_optim.Adam(
@@ -108,7 +106,8 @@ def main():
     print(f"Training time: {start.elapsed_time(end)/60000} mins")
 
     # Test Image
-    test_image = test_dataset.__getitem__(0).to(device)  # 讓測試影像也在 GPU
+    ran_num = torch.randint(0, len(test_dataset), (1,)).item()
+    test_image = test_dataset.__getitem__(ran_num).unsqueeze(0).to(device)  # 讓測試影像也在 GPU
 
     with t_no_grad():
         mu, log_var, latent, reconstructed = vae_model.forward(test_image)
@@ -130,11 +129,24 @@ def main():
         print(f"原始 latent: {sample_latent[:5]}")
         print(f"重建的 latent: {combined_latent[:5]}")
     
-    # Save reconstructed image - it's already [1, 1, 256, 256]
-    reconstructed_image = reconstructed_from_combined.squeeze().cpu().numpy() * 255
-    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_image)
+    save_path = os.path.join(BASE_DIR, results_path, "reconstructed_image.png")
     
-    plot_graphs.calculate_statistics(process_path, results_path)
+    if img_channels == 1:
+        # Grayscale
+        reconstructed_image = reconstructed_from_combined.squeeze().cpu().numpy() * 255
+        cv2.imwrite(save_path, reconstructed_image)
+    else:
+        # RGB
+        reconstructed_img = reconstructed_from_combined.squeeze(0).cpu() # (3, 128, 128)
+        reconstructed_img = reconstructed_img.permute(1, 2, 0).numpy() * 255 # (128, 128, 3)
+        
+        # แปลงจาก RGB (PyTorch) เป็น BGR (OpenCV)
+        reconstructed_bgr = cv2.cvtColor(reconstructed_img, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(save_path, reconstructed_bgr)
+    
+    print(f"Reconstructed image saved to {save_path}")
+    
+    plot_graphs.calculate_statistics(process_path, results_path, num_channels=img_channels)
     
     
 if __name__ == "__main__":

@@ -8,20 +8,29 @@ import utility as util
 # Root directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def calculate_statistics(img_path1:str, img_path2:str, output_dir="graph_outputs", test_Y=True):
+def calculate_statistics(img_path1:str, img_path2:str, output_dir="graph_outputs", num_channels:int=1):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         
-    folder_GT = os.path.join(BASE_DIR, img_path1, 'grayscale_image.png')
+    if num_channels == 1:
+        gt_filename = 'grayscale_image.png'
+        read_mode_gt = cv2.IMREAD_GRAYSCALE
+        read_mode_gen = cv2.IMREAD_GRAYSCALE
+    else:
+        gt_filename = 'rgb_image.png'
+        read_mode_gt = cv2.IMREAD_COLOR
+        read_mode_gen = cv2.IMREAD_COLOR
+
+    folder_GT = os.path.join(BASE_DIR, img_path1, gt_filename)
     folder_Gen = os.path.join(BASE_DIR, img_path2, 'reconstructed_image.png')
     
     print(f"GT path: {folder_GT}")
     print(f"Gen path: {folder_Gen}")
     
-    im_GT = cv2.imread(folder_GT) / 255.
-    im_Gen = cv2.imread(folder_Gen) / 255.
+    im_GT = cv2.imread(folder_GT, read_mode_gt) / 255.
+    im_Gen = cv2.imread(folder_Gen, read_mode_gen) / 255.
 
-    if test_Y and im_GT.shape[2] == 3:
+    if num_channels == 3:
         im_GT_in = bgr2ycbcr(im_GT)
         im_Gen_in = bgr2ycbcr(im_Gen)
     else:
