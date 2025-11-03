@@ -25,6 +25,11 @@ def preprocess_image(image:Image, image_size=(256,256), output_dir="preprocessed
     img_resized.save(os.path.join(output_dir, "grayscale_image.png"))
     return ToTensor()(img_resized).view(-1, image_size[0] * image_size[1]).float()
 
+def load_image(image_path:str, image_size:tuple=(256,256)):
+    image = Image.open(image_path).convert('L')
+    image = image.resize(image_size)
+    return image
+
 def create_directory(path:str):
     if not os.path.exists(path):
         os.makedirs(path)
