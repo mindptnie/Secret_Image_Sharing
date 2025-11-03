@@ -27,19 +27,22 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Directories
 process_path = "preprocessed"
+graphs_path = "graph_outputs"
 results_path = "results"
 data_path = "Pic"
-output_dir = "graph_outputs"
 
-# Name of the image folder
+# Name of the image folder  
 image_name = "cat_dog"
 
 # Parameters
 latent_dim = 1024  # latent dimension
 epochs = 1
-batch_size = 320
-image_size = (256, 256)
-lambda_weight = 0.000001  # weight for KL divergence loss
+batch_size = 32
+image_size = (128, 128)
+lambda_weight = 0.0001  # weight for KL divergence loss
+
+# Image Channels
+img_channels = 1  # 1 = Grayscale images , 3 = RGB images
 
 # Shamir's Secret Sharing parameters
 n_shares = 5  # Share count
@@ -53,9 +56,10 @@ print(f"Using device: {device}")
 def main():
 
     # Create necessary directories
+    util.create_directory(process_path)
     util.create_directory(results_path)
     util.create_directory(data_path)
-    util.create_directory(output_dir)
+    util.create_directory(graphs_path)
     
     # Delete previous shares
     util.delete_image(os.path.join(BASE_DIR, "shares"))
@@ -65,14 +69,17 @@ def main():
     
     train_data_path = os.path.join(BASE_DIR, data_path, image_name, "Training data")
     test_data_path  = os.path.join(BASE_DIR, data_path, image_name, "Testing data")
-
-    train_image_paths = util.get_images_in_paths(train_data_path, image_name)
-    test_image_paths = util.get_images_in_paths(test_data_path, image_name)
-
-    train_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
-    print(f"Use image {image_name}: {train_image_path}")
     
-    train_dataset = ds.CustomDataset(train_data_path, target_size=image_size)
+    if not os.path.exists(train_data_path) or not os.path.exists(test_data_path):
+        raise FileNotFoundError(f"Training or Testing data path does not exist. Please check the directory: {train_data_path} or {test_data_path}")
+
+    train_dataset = ds.CustomDataset(root_dir=train_data_path, 
+                                     target_size=image_size,
+                                     num_channels=img_channels)
+    
+    test_dataset = ds.CustomDataset(root_dir=test_data_path, 
+                                     target_size=image_size,
+                                     num_channels=img_channels)
 
     train_loader = train_dataset.get_dataloader(
         batch_size=batch_size, 
@@ -83,8 +90,9 @@ def main():
     start.record()
     
     # Initialize VAE model 
-    vae_model = vae_module.VariationalAutoencoder(image_size, latent_dim)
-    vae_model = vae_model.to(device)
+    vae_model = vae_module.VariationalAutoencoder(image_size=image_size, 
+                                                  latent_dim=latent_dim)
+    vae_model = vae_model.to(device) # Move to GPU
     
     optimizer = t_optim.Adam(
         vae_model.parameters(), 
@@ -99,22 +107,8 @@ def main():
     t_cuda.synchronize()
     print(f"Training time: {start.elapsed_time(end)/60000} mins")
 
-    # ============ FIXED TEST IMAGE SECTION ============
-    test_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
-    print(f"Testing on image: {test_image_path}")
-    
-    # Load and preprocess image correctly for Conv2D
-    test_image_object = Image.open(test_image_path).convert('L')
-    
-    # Define transform to match your image_size
-    transform = transforms.Compose([
-        transforms.Resize(image_size),
-        transforms.ToTensor(),  # Converts to [C, H, W] and scales to [0, 1]
-    ])
-    
-    # Apply transform and add batch dimension
-    test_image = transform(test_image_object).unsqueeze(0).to(device)  # [1, 1, 256, 256]
-    print(f"Test image shape: {test_image.shape}")  # Should print: torch.Size([1, 1, 256, 256])
+    # Test Image
+    test_image = test_dataset.__getitem__(0).to(device)  # 讓測試影像也在 GPU
 
     with t_no_grad():
         mu, log_var, latent, reconstructed = vae_model.forward(test_image)
