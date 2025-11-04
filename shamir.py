@@ -226,74 +226,77 @@ def combine_shares(shares_with_positions, r):
 
     return tensor(reconstructed_latent, dtype=float32)
 
-# def main():
-#     parser = argparse.ArgumentParser(description='Shamir Secret Image Sharing')
-#     parser.add_argument('-e', '--encode', help='Path to the image to be encoded')
-#     parser.add_argument('-d', '--decode', help='Path for the origin image to be saved')
-#     parser.add_argument('-n', type=int, help='The total number of shares')
-#     parser.add_argument('-r', type=int, help='The threshold number of shares to reconstruct the image')
-#     parser.add_argument('-i', '--index', nargs='+', type=int, help='The index of shares to use for decoding')
-#     parser.add_argument('-c', '--compare', nargs=2, help='Compare two images')
-#     args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser(description='Shamir Secret Image Sharing')
+    parser.add_argument('-e', '--encode', help='Path to the image to be encoded')
+    parser.add_argument('-d', '--decode', help='Path for the origin image to be saved')
+    parser.add_argument('-n', type=int, help='The total number of shares')
+    parser.add_argument('-r', type=int, help='The threshold number of shares to reconstruct the image')
+    parser.add_argument('-i', '--index', nargs='+', type=int, help='The index of shares to use for decoding')
+    parser.add_argument('-c', '--compare', nargs=2, help='Compare two images')
+    args = parser.parse_args()
 
-#     if args.encode:
-#         start_time = time.time()
-#         print("\n=== Starting image encoding process ===")
+    if args.encode:
+        start_time = time.time()
+        print("\n=== Starting image encoding process ===")
 
-#         if not args.r:
-#             print("Error: Threshold number 'r' is required for decoding")
-#             return
-#         if not args.n:
-#             print("Error: Total number 'n' of shares is required for decoding")
-#             return
-#         if args.r > args.n:
-#             print("Error: Threshold 'r' cannot be greater than the total number 'n' of shares")
-#             return
+        if not args.r:
+            print("Error: Threshold number 'r' is required for decoding")
+            return
+        if not args.n:
+            print("Error: Total number 'n' of shares is required for decoding")
+            return
+        if args.r > args.n:
+            print("Error: Threshold 'r' cannot be greater than the total number 'n' of shares")
+            return
 
-#         img_flattened, shape = preprocessing(args.encode)
-#         secret_imgs, imgs_extra = polynomial(img_flattened, n=args.n, r=args.r)
-#         to_save = secret_imgs.reshape(args.n, *shape)
-#         for i, img in enumerate(to_save):
-#             secret_img_path = f"secret_{i + 1}.png"
-#             Image.fromarray(img.astype(np.uint8)).save(secret_img_path)
-#             img_extra = str(list((imgs_extra[i]))).encode()
-#             insert_text_chunk(secret_img_path, secret_img_path, img_extra)
-#             size = get_file_size(secret_img_path)
-#             print(f"{secret_img_path} saved.",size)
+        img_flattened, shape = preprocessing(args.encode)
+        secret_imgs, imgs_extra = polynomial(img_flattened, n=args.n, r=args.r)
+        to_save = secret_imgs.reshape(args.n, *shape)
+        for i, img in enumerate(to_save):
+            secret_img_path = f"secret_{i + 1}.png"
+            Image.fromarray(img.astype(np.uint8)).save(secret_img_path)
+            img_extra = str(list((imgs_extra[i]))).encode()
+            insert_text_chunk(secret_img_path, secret_img_path, img_extra)
+            size = get_file_size(secret_img_path)
+            print(f"{secret_img_path} saved.",size)
             
 
-#         end_time = time.time()
-#         print("=== Image encoding completed. Time elapsed: {:.2f} seconds ===".format(end_time - start_time))
+        end_time = time.time()
+        print("=== Image encoding completed. Time elapsed: {:.2f} seconds ===".format(end_time - start_time))
 
-#     if args.decode:
-#         start_time = time.time()
-#         print("\n=== Starting image decoding process ===")
+    if args.decode:
+        start_time = time.time()
+        print("\n=== Starting image decoding process ===")
 
-#         if not args.r:
-#             print("Error: Threshold number 'r' is required for decoding")
-#             return
+        if not args.r:
+            print("Error: Threshold number 'r' is required for decoding")
+            return
 
-#         input_imgs = []
-#         input_imgs_extra = []
-#         for i in args.index:
-#             secret_img_path = f"secret_{i}.png"
-#             img_extra = read_text_chunk(secret_img_path)
-#             img, shape = preprocessing(secret_img_path)
-#             input_imgs.append(img)
-#             input_imgs_extra.append(img_extra)
-#         input_imgs = np.array(input_imgs)
-#         origin_img = decode(input_imgs, input_imgs_extra, args.index, r=args.r)
-#         origin_img = origin_img.reshape(*shape)
-#         Image.fromarray(origin_img.astype(np.uint8)).save(args.decode)
-#         size = get_file_size(args.decode)
-#         print(f"{args.decode} saved.",size)
+        input_imgs = []
+        input_imgs_extra = []
+        for i in args.index:
+            secret_img_path = f"secret_{i}.png"
+            img_extra = read_text_chunk(secret_img_path)
+            img, shape = preprocessing(secret_img_path)
+            input_imgs.append(img)
+            input_imgs_extra.append(img_extra)
+        input_imgs = np.array(input_imgs)
+        origin_img = decode(input_imgs, input_imgs_extra, args.index, r=args.r)
+        origin_img = origin_img.reshape(*shape)
+        Image.fromarray(origin_img.astype(np.uint8)).save(args.decode)
+        size = get_file_size(args.decode)
+        print(f"{args.decode} saved.",size)
 
-#         end_time = time.time()
-#         print("=== Image decoding completed. Time elapsed: {:.2f} seconds ===".format(end_time - start_time))
+        end_time = time.time()
+        print("=== Image decoding completed. Time elapsed: {:.2f} seconds ===".format(end_time - start_time))
 
-#     if args.compare:
-#         print("\n=== Starting image comparison ===")
+    if args.compare:
+        print("\n=== Starting image comparison ===")
 
-#         compare_images(args.compare[0], args.compare[1])
+        compare_images(args.compare[0], args.compare[1])
 
-#         print("=== Image comparison completed.  ===")
+        print("=== Image comparison completed.  ===")
+
+if __name__ == "__main__":
+    main()

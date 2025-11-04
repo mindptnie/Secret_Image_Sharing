@@ -10,8 +10,12 @@ import utility as util
 import graph as plot_graphs
 
 class VariationalAutoencoder(t_nn.Module):
-    def __init__(self, image_size: tuple, latent_dim: int , num_channels: int =1):
+    def __init__(self, 
+                 image_size: tuple, 
+                 latent_dim: int , 
+                 num_channels: int =1) -> None:
         super().__init__()
+        
         self.image_size = image_size
         self.latent_dim = latent_dim
         self.num_channels = num_channels
