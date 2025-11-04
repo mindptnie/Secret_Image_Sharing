@@ -5,6 +5,10 @@ preprocessed/
 results/
 shares/
 graph_outputs/
+Data/
+Training data/
+lightning_logs/
+checkpoints/
 
 # Python bytecode
 __pycache__/

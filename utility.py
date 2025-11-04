@@ -1,35 +1,9 @@
-import math
 import os
-import cv2
 import glob
-from PIL import Image
-
-import torch.nn as t_nn
-from torch import sum as t_sum
-from torch import mean as t_mean
+import yaml
 import torch.utils.data
+from PIL import Image
 from torchvision.transforms import ToTensor
-
-# def vae_loss_function(reconstructed, original, mu, log_var, lambda_weight:float=0.0001):
-#      # **確保 reconstructed 的 shape 和 original 一樣**
-#     assert reconstructed.shape == original.shape, f"Shape mismatch: {reconstructed.shape} vs {original.shape}"
-
-#     recon_loss = t_nn.MSELoss()(reconstructed, original) # GPU 計算
-#     kl_loss = -0.5 * t_sum(1 + log_var - mu.pow(2) - log_var.exp())  # KL 散度  # GPU 計算
-#     return recon_loss + lambda_weight * kl_loss  # 調整 KL loss 權重
-
-def vae_loss_function(reconstructed, original, mu, log_var, lambda_weight:float=0.0001):
-     # **確保 reconstructed 的 shape 和 original 一樣**
-    assert reconstructed.shape == original.shape, f"Shape mismatch: {reconstructed.shape} vs {original.shape}"
-
-    recon_loss = t_nn.MSELoss()(reconstructed, original) # GPU 計算
-    
-    # 1. Sum over the latent dimensions (dim=1)
-    kl_loss_per_item = -0.5 * t_sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
-    # 2. Average across the batch
-    kl_loss = t_mean(kl_loss_per_item) # GPU 計算
-    
-    return recon_loss + lambda_weight * kl_loss
 
 # 預處理影像
 def preprocess_image(image:Image, image_size=(256,256), num_channels:int=1, output_dir="preprocessed"):
@@ -79,3 +53,13 @@ def get_images_in_paths(folder_path:str,img_name="*.png"):
     if img_name!="*.png":
         img_name = f"{img_name}*.png"
     return glob.glob(os.path.join(folder_path, img_name))
+
+def load_config(config_path="config.yml"):
+    print(f"Loading configuration from: {config_path}")
+    with open(config_path, 'r') as file:
+        try:
+            config = yaml.safe_load(file)
+            return config
+        except yaml.YAMLError as exc:
+            print(f"Error loading YAML file: {exc}")
+            return None

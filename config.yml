@@ -1,6 +1,7 @@
 model_params:
   in_channels: 3
   latent_dim: 10
+  image_size: 128
   manual_seed: 67
 
 data_params:
@@ -9,6 +10,7 @@ data_params:
   val_batch_size:  64
   patch_size: 64
   num_workers: 4
+  pin_memory: True
 
 exp_params:
   LR: 0.001
@@ -16,8 +18,12 @@ exp_params:
   scheduler_gamma: 0.5
   kld_weight: 0.001
 
+shamir:
+  num_shares: 5
+  threshold: 3
+
 trainer_params:
-  gpus: [1]
+  accelerator: "cuda"
   max_epochs: 10
 
 logging_params:
