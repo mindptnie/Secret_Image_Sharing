@@ -12,6 +12,7 @@ from cv2 import imwrite as write
 from PIL import Image
 import torchvision.transforms as transforms
 import torch
+import numpy as np
 
 import vae as vae_module
 
@@ -36,10 +37,10 @@ image_name = "cat_dog"
 
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 1
-batch_size = 320
+epochs = 100
+batch_size = 100
 image_size = (256, 256)
-lambda_weight = 0.000001  # weight for KL divergence loss
+lambda_weight = 0.0001  # weight for KL divergence loss
 
 # Shamir's Secret Sharing parameters
 n_shares = 5  # Share count
@@ -88,7 +89,7 @@ def main():
     
     optimizer = t_optim.Adam(
         vae_model.parameters(), 
-        lr=0.001, 
+        lr=0.0001, 
         weight_decay=1e-5) 
     
     scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
@@ -100,11 +101,11 @@ def main():
     print(f"Training time: {start.elapsed_time(end)/60000} mins")
 
     # ============ FIXED TEST IMAGE SECTION ============
-    test_image_path = os.path.join(BASE_DIR, data_path, f"{image_name}.png")
+    test_image_path = os.path.join(BASE_DIR, data_path, "cat_dog.png")
     print(f"Testing on image: {test_image_path}")
     
-    # Load and preprocess image correctly for Conv2D
-    test_image_object = Image.open(test_image_path).convert('L')
+    # CHANGED: Load as RGB instead of grayscale
+    test_image_object = Image.open(test_image_path).convert('RGB')
     
     # Define transform to match your image_size
     transform = transforms.Compose([
@@ -113,8 +114,9 @@ def main():
     ])
     
     # Apply transform and add batch dimension
-    test_image = transform(test_image_object).unsqueeze(0).to(device)  # [1, 1, 256, 256]
-    print(f"Test image shape: {test_image.shape}")  # Should print: torch.Size([1, 1, 256, 256])
+    # CHANGED: Shape is now [1, 3, 256, 256] for RGB
+    test_image = transform(test_image_object).unsqueeze(0).to(device)
+    print(f"Test image shape: {test_image.shape}")  # Should print: torch.Size([1, 3, 256, 256])
 
     with t_no_grad():
         mu, log_var, latent, reconstructed = vae_model.forward(test_image)
@@ -136,9 +138,14 @@ def main():
         print(f"原始 latent: {sample_latent[:5]}")
         print(f"重建的 latent: {combined_latent[:5]}")
     
-    # Save reconstructed image - it's already [1, 1, 256, 256]
-    reconstructed_image = reconstructed_from_combined.squeeze().cpu().numpy() * 255
-    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_image)
+    # CHANGED: Save color image (convert from [1, 3, H, W] to [H, W, 3])
+    reconstructed_image = reconstructed_from_combined.squeeze(0).cpu().numpy()  # [3, 256, 256]
+    reconstructed_image = np.transpose(reconstructed_image, (1, 2, 0))  # [256, 256, 3]
+    reconstructed_image = (reconstructed_image * 255).astype(np.uint8)
+    
+    # Convert RGB to BGR for OpenCV
+    reconstructed_image_bgr = reconstructed_image[:, :, ::-1]
+    write(os.path.join(BASE_DIR, results_path, "reconstructed_image.png"), reconstructed_image_bgr)
     
     plot_graphs.calculate_statistics(process_path, results_path)
     

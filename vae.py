@@ -21,9 +21,10 @@ class VariationalAutoencoder(t_nn.Module):
         self.final_feature_dim = 256 * self.final_conv_size * self.final_conv_size
         
         # Encoder - Convolutional layers
+        # CHANGED: Input channels from 1 to 3 for RGB
         self.encoder = t_nn.Sequential(
-            # Input: [batch, 1, 256, 256]
-            t_nn.Conv2d(1, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
+            # Input: [batch, 3, 256, 256]
+            t_nn.Conv2d(3, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
             t_nn.BatchNorm2d(32),
             t_nn.ReLU(),
             
@@ -48,6 +49,7 @@ class VariationalAutoencoder(t_nn.Module):
         self.decoder_input = t_nn.Linear(latent_dim, self.final_feature_dim)
         
         # Decoder - Transposed Convolutional layers
+        # CHANGED: Output channels from 1 to 3 for RGB
         self.decoder = t_nn.Sequential(
             # Input: [batch, 256, 16, 16]
             t_nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
@@ -62,7 +64,7 @@ class VariationalAutoencoder(t_nn.Module):
             t_nn.BatchNorm2d(32),
             t_nn.ReLU(),
             
-            t_nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1),  # -> [batch, 1, 256, 256]
+            t_nn.ConvTranspose2d(32, 3, kernel_size=4, stride=2, padding=1),  # -> [batch, 3, 256, 256]
             t_nn.Sigmoid(),
         )
 
@@ -104,7 +106,8 @@ class VariationalAutoencoder(t_nn.Module):
                 if data is None:
                     continue
 
-                img = data.view(-1, 1, self.image_size[0], self.image_size[1]).to(device)
+                # CHANGED: Shape is now [batch, 3, H, W] for RGB
+                img = data.view(-1, 3, self.image_size[0], self.image_size[1]).to(device)
 
                 optimizer.zero_grad()
                 mu, log_var, latent, reconstructed = self.forward(img)

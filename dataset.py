@@ -10,7 +10,7 @@ class CustomDataset(Dataset):
         self.root_dir = root_dir
         self.image_paths = []
         self.target_size = target_size
-        self.image_size_flat = target_size[0] * target_size[1]
+        # CHANGED: No longer using image_size_flat since we keep spatial dimensions
         print(root_dir)
 
         supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
@@ -28,11 +28,12 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         try:
             img_path = self.image_paths[idx]
-            image = Image.open(img_path).convert('L')
+            # CHANGED: Convert to 'RGB' instead of 'L' (grayscale)
+            image = Image.open(img_path).convert('RGB')
         except Exception as e:
-            
             warnings.warn(f"Error loading image {img_path}: {e}. Returning black image.")
-            return torch.zeros(1, self.target_size[0], self.target_size[1])
+            # CHANGED: Return 3-channel black image
+            return torch.zeros(3, self.target_size[0], self.target_size[1])
         
         return util.preprocess_image(image, image_size=self.target_size)
     

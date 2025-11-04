@@ -12,7 +12,7 @@ def calculate_statistics(img_path1:str, img_path2:str, output_dir="graph_outputs
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         
-    folder_GT = os.path.join(BASE_DIR, img_path1, 'grayscale_image.png')
+    folder_GT = os.path.join(BASE_DIR, img_path1, 'color_image.png')
     folder_Gen = os.path.join(BASE_DIR, img_path2, 'reconstructed_image.png')
     
     print(f"GT path: {folder_GT}")
