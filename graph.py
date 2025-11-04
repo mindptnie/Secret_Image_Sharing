@@ -14,33 +14,22 @@ def calculate_statistics(img_path1:str, img_path2:str, output_dir="graph_outputs
         
     if num_channels == 1:
         gt_filename = 'grayscale_image.png'
-        read_mode_gt = cv2.IMREAD_GRAYSCALE
-        read_mode_gen = cv2.IMREAD_GRAYSCALE
     else:
         gt_filename = 'rgb_image.png'
-        read_mode_gt = cv2.IMREAD_COLOR
-        read_mode_gen = cv2.IMREAD_COLOR
-
+        
     folder_GT = os.path.join(BASE_DIR, img_path1, gt_filename)
     folder_Gen = os.path.join(BASE_DIR, img_path2, 'reconstructed_image.png')
     
     print(f"GT path: {folder_GT}")
     print(f"Gen path: {folder_Gen}")
     
-    im_GT = cv2.imread(folder_GT, read_mode_gt) / 255.
-    im_Gen = cv2.imread(folder_Gen, read_mode_gen) / 255.
-
-    if num_channels == 3:
-        im_GT_in = bgr2ycbcr(im_GT)
-        im_Gen_in = bgr2ycbcr(im_Gen)
-    else:
-        im_GT_in = im_GT
-        im_Gen_in = im_Gen
+    im_GT = cv2.imread(folder_GT) / 255.
+    im_Gen = cv2.imread(folder_Gen) / 255.
 
     # 計算 MSE, PSNR 和 SSIM
-    MSE = calculate_mse(im_GT_in * 255, im_Gen_in * 255)
-    PSNR = calculate_psnr(im_GT_in * 255, im_Gen_in * 255)
-    SSIM = calculate_ssim(im_GT_in * 255, im_Gen_in * 255)
+    MSE = calculate_mse(im_GT * 255, im_Gen * 255)
+    PSNR = calculate_psnr(im_GT * 255, im_Gen * 255)
+    SSIM = calculate_ssim(im_GT * 255, im_Gen * 255)
 
     # 輸出 MSE, PSNR 和 SSIM 結果
     print_statistics(MSE, PSNR, SSIM)
@@ -70,7 +59,7 @@ def calculate_psnr(img1, img2):
 
 def calculate_ssim(img1, img2):
     """ 計算 SSIM（結構相似度） """
-    return ssim(img1, img2, data_range=255, multichannel=True)
+    return ssim(img1, img2, data_range=255, multichannel=True , channel_axis=2)
 
 def bgr2ycbcr(img):
     """ 轉換 BGR 影像至 YCbCr 格式，並回傳 Y 通道 """

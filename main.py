@@ -8,7 +8,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torch import device as t_device
 from torch import no_grad as t_no_grad
 from torch import randn as t_randn
-import torchvision.transforms as transforms
+import torch.backends.cudnn as cudnn
 
 import vae as vae_module
 
@@ -29,14 +29,14 @@ results_path = "results"
 data_path = "Pic"
 
 # Name of the image folder  
-image_name = "cat_dog"
+image_name = "human"
 
 # Parameters
 latent_dim = 1024  # latent dimension
-epochs = 1
-batch_size = 64
-image_size = (256, 256)
-lambda_weight = 0.0001  # weight for KL divergence loss
+epochs = 50
+batch_size = 128
+image_size = (128, 128)
+lambda_weight = 0.0005  # weight for KL divergence loss
 
 # Image Channels
 img_channels = 3  # 1 = Grayscale images , 3 = RGB images
@@ -48,6 +48,8 @@ r_threshold = 3  # Reconstruction threshold
 #^^^^^^ Configuration ^^^^^^#
 
 device = t_device("cuda" if t_cuda.is_available() else "cpu")
+if t_cuda.is_available():
+    cudnn.benchmark = True 
 print(f"Using device: {device}")
 
 def main():
@@ -92,7 +94,7 @@ def main():
                                                   num_channels=img_channels)
     vae_model = vae_model.to(device) # Move to GPU
     
-    optimizer = t_optim.Adam(
+    optimizer = t_optim.AdamW(
         vae_model.parameters(), 
         lr=0.001, 
         weight_decay=1e-5) 
