@@ -1,12 +1,14 @@
+# https://github.com/AntixK/PyTorch-VAE/blob/master/models/vanilla_vae.py
+
 import time
 from tqdm import tqdm
 
 import torch
 from torch import nn
-from torch import sum
-from torch import mean
 from torch.nn import functional as F
 from torch import tensor as Tensor
+
+from typing import List
 
 import graph as plot_graphs
 
@@ -76,84 +78,101 @@ class VariationalAutoencoder(nn.Module):
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(std)
         return mu + eps * std
-
-    def forward(self, x):
-        # Encoder
+    
+    def encode(self, x: Tensor) -> List[Tensor]:
         encoded = self.encoder(x)  # [batch, 256, 16, 16]
         encoded_flat = encoded.view(-1, self.final_feature_dim)  # Flatten
-        
-        # Latent space
         mu = self.mu_layer(encoded_flat)
         log_var = self.log_var_layer(encoded_flat)
-        z = self.reparameterize(mu, log_var)
-        
-        # Decoder
+        return [mu, log_var]
+    
+    def decode(self, z: Tensor) -> Tensor:
         decoder_input = self.decoder_input(z)
         decoder_input = decoder_input.view(-1, 256, self.final_conv_size, self.final_conv_size)
         reconstructed = self.decoder(decoder_input)
+        return reconstructed
+
+    def forward(self, x: Tensor) -> List[Tensor]:
+        mu, log_var = self.encode(x)
+        z = self.reparameterize(mu, log_var)
         
-        return mu, log_var, z, reconstructed
+        return [self.decode(z), x, mu, log_var]
     
-    def loss_function(reconstructed, original, mu, log_var, lambda_weight:float=0.0001):
-        # **確保 reconstructed 的 shape 和 original 一樣**
-        assert reconstructed.shape == original.shape, f"Shape mismatch: {reconstructed.shape} vs {original.shape}"
+    def loss_function(self,
+                      *args,
+                      **kwargs) -> dict:
+        recons = args[0]
+        input = args[1]
+        mu = args[2]
+        log_var = args[3]
+        # assert recons.shape == input.shape, f"Shape mismatch: {recons.shape} vs {input.shape}"
 
-        recon_loss = nn.MSELoss()(reconstructed, original) # GPU 計算
+        kld_weight = kwargs['M_N']
+        recon_loss = F.mse_loss(recons, input)
         
-        # 1. Sum over the latent dimensions (dim=1)
-        kl_loss_per_item = -0.5 * sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
-        # 2. Average across the batch
-        kl_loss = mean(kl_loss_per_item) # GPU 計算
+        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
         
-        return recon_loss + lambda_weight * kl_loss
-
-    def train_vae(self, optimizer, scheduler, train_loader, epochs, device, lambda_weight: float = 0.0001):
-        loss_history = []
-        lr_history = []
+        loss = recon_loss + kld_weight * kld_loss
         
-        print("Starting training...")
-        total_start_time = time.time()
+        return {'loss': loss, 'Reconstruction_Loss':recon_loss.detach(), 'KLD':-kld_loss.detach()}
+
+    def sample(self, num_samples: int, device: torch.device) -> Tensor:
+        z = torch.randn(num_samples, self.latent_dim)
+        z = z.to(device)
         
-        for epoch in range(epochs):
-            epoch_loss = 0
-            
-            progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}", leave=False)
+        samples = self.decode(z)
+        return samples
+    
+    def generate(self, x: Tensor) -> Tensor:
+        return self.forward(x)[0]
 
-            for data in progress_bar:
-                if data is None:
-                    continue
-
-                img = data.to(device)
-
-                optimizer.zero_grad()
-                mu, log_var, latent, reconstructed = self.forward(img)
-
-                loss = self.loss_function(reconstructed, img, mu, log_var, lambda_weight=lambda_weight)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
-
-                progress_bar.set_postfix(Loss=f"{epoch_loss:.4f}")
-            
-            avg_loss = epoch_loss / len(train_loader)
-            loss_history.append(avg_loss)
-            
-            scheduler.step()
-            current_lr = optimizer.param_groups[0]['lr']
-            lr_history.append(current_lr)
-            
-            print(f"Epoch {epoch+1}/{epochs} Summary: Avg Loss: {avg_loss:.6f}, LR: {current_lr:.6f}")
-
-        progress_bar.close()
-            
-        total_end_time = time.time()
-        total_time = total_end_time - total_start_time
-        print(f"Total training time: {total_time:.2f} seconds")
-        print(f"Total training time: {total_time / 60:.2f} mins")
+    # def train_vae(self, optimizer, scheduler, train_loader, epochs, device, lambda_weight: float = 0.0001):
+    #     loss_history = []
+    #     lr_history = []
         
-        print(f"epochs: {epochs}")
-        print(f"loss_history: {loss_history}")
-        print(f"lr_history: {lr_history}")
+    #     print("Starting training...")
+    #     total_start_time = time.time()
+        
+    #     for epoch in range(epochs):
+    #         epoch_loss = 0
+            
+    #         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}", leave=False)
 
-        plot_graphs.loss_curve(epochs, loss_history)
-        plot_graphs.learning_rate(epochs, lr_history)
+    #         for data in progress_bar:
+    #             if data is None:
+    #                 continue
+
+    #             img = data.to(device)
+
+    #             optimizer.zero_grad()
+    #             mu, log_var, latent, reconstructed = self.forward(img)
+
+    #             loss = self.loss_function(reconstructed, img, mu, log_var, kld_weight=lambda_weight)
+    #             loss.backward()
+    #             optimizer.step()
+    #             epoch_loss += loss.item()
+
+    #             progress_bar.set_postfix(Loss=f"{epoch_loss:.4f}")
+            
+    #         avg_loss = epoch_loss / len(train_loader)
+    #         loss_history.append(avg_loss)
+            
+    #         scheduler.step()
+    #         current_lr = optimizer.param_groups[0]['lr']
+    #         lr_history.append(current_lr)
+            
+    #         print(f"Epoch {epoch+1}/{epochs} Summary: Avg Loss: {avg_loss:.6f}, LR: {current_lr:.6f}")
+
+    #     progress_bar.close()
+            
+    #     total_end_time = time.time()
+    #     total_time = total_end_time - total_start_time
+    #     print(f"Total training time: {total_time:.2f} seconds")
+    #     print(f"Total training time: {total_time / 60:.2f} mins")
+        
+    #     print(f"epochs: {epochs}")
+    #     print(f"loss_history: {loss_history}")
+    #     print(f"lr_history: {lr_history}")
+
+    #     plot_graphs.loss_curve(epochs, loss_history)
+    #     plot_graphs.learning_rate(epochs, lr_history)

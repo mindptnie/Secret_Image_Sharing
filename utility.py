@@ -6,7 +6,7 @@ from PIL import Image
 from torchvision.transforms import ToTensor
 
 # 預處理影像
-def preprocess_image(image:Image, image_size=(256,256), num_channels:int=1, output_dir="preprocessed"):
+def preprocess_image(image:Image, image_size:int=256, num_channels:int=1, output_dir="preprocessed"):
     create_directory(output_dir)
 
     if num_channels == 1:
@@ -27,7 +27,7 @@ def preprocess_image(image:Image, image_size=(256,256), num_channels:int=1, outp
             
         save_name = "rgb_image.png"
 
-    img_resized = image.resize((image_size[0], image_size[1]))
+    img_resized = image.resize((image_size, image_size))
     img_resized.save(os.path.join(output_dir, save_name))
     
     return ToTensor()(img_resized).float()

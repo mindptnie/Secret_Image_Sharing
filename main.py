@@ -57,10 +57,8 @@ def main():
     
     bar_callback = RichProgressBar(refresh_rate=1)
 
-    trainer = Trainer(
-        max_epochs=config['trainer_params']['max_epochs'],
-        
-        callbacks=[bar_callback] 
+    trainer = Trainer(callbacks=[bar_callback],
+                      **config['trainer_params']
     )
     
     trainer.fit(experiment,data)
