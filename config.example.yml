@@ -12,18 +12,19 @@ data_params:
   pin_memory: True
 
 exp_params:
+  max_epochs: 10
   LR: 0.001
   weight_decay: 0.000001
   scheduler_gamma: 0.5
   kld_weight: 0.0005
+  step_size: 20
+  device_type: "cuda"
 
 shamir:
   num_shares: 5
   threshold: 3
 
 trainer_params:
-  accelerator: "cuda"
-  max_epochs: 10
 
 logging_params:
   save_dir: "logs/"

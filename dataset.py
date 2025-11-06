@@ -10,12 +10,14 @@ import pytorch_lightning as pl
 class CustomDataset(Dataset):
     def __init__(self, 
                  data_path:str,
+                 transform:transforms,
                  split: str,
                  split_set: float=0.8,
                  target_size:int=128, 
                  num_channels:int=1):
         
         self.root_dir = Path(data_path)
+        self.transform = transform
         self.target_size = target_size
         self.num_channels = num_channels
         
@@ -29,12 +31,8 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx:int):
         img = default_loader(self.imgs[idx])
         
-        img = util.covert_rgba(img=img,
-                               img_size=self.target_size, 
-                               num_channels=self.num_channels)
-        
-        img = transforms.ToTensor()(img)
-        
+        if self.transform is not None:
+            img = self.transform(img)
         return img
         
 class VAEDataModule(pl.LightningDataModule):
@@ -60,9 +58,21 @@ class VAEDataModule(pl.LightningDataModule):
         self.pin_memory = pin_memory
         
     def setup(self, stage: Optional[str] = None):
+        transform_list = []
+        if self.channels == 1:
+            transform_list.append(transforms.Grayscale(num_output_channels=1))
+        else:
+            transform_list.append(transforms.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img))
+        transform_list.append(transforms.Resize((self.img_size, self.img_size)))
+        transform_list.append(transforms.ToTensor())
+        
+        train_transforms = transforms.Compose(transform_list)
+        
+        val_transforms = transforms.Compose(transform_list)
         
         self.train_dataset = CustomDataset(
             data_path=self.data_dir,
+            transform=train_transforms,
             split='train',
             target_size=self.img_size,
             num_channels=self.channels
@@ -70,6 +80,7 @@ class VAEDataModule(pl.LightningDataModule):
         
         self.val_dataset = CustomDataset(
             data_path=self.data_dir,
+            transform=val_transforms,
             split='test',
             target_size=self.img_size,
             num_channels=self.channels
