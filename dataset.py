@@ -1,50 +1,103 @@
-import warnings
-import torch
-import os
+
 import utility as util
+from typing import List, Union, Optional, Sequence
+from pathlib import Path
+from torchvision.datasets.folder import default_loader
 from torch.utils.data import Dataset, DataLoader
-from PIL import Image
+from torchvision import transforms
+import pytorch_lightning as pl
 
 class CustomDataset(Dataset):
-    def __init__(self, root_dir:str, target_size:tuple=(256,256), num_channels:int=1):
-        self.root_dir = root_dir
-        self.image_paths = []
+    def __init__(self, 
+                 data_path:str,
+                 split: str,
+                 split_set: float=0.8,
+                 target_size:int=128, 
+                 num_channels:int=1):
+        
+        self.root_dir = Path(data_path)
         self.target_size = target_size
-        self.image_size_flat = target_size[0] * target_size[1]
         self.num_channels = num_channels
-
+        
         supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
-        # Gather all image paths
-        if not os.path.isdir(root_dir):
-            raise FileNotFoundError(f"No directory found: {root_dir}")
-            
-        for fname in os.listdir(root_dir):
-            if fname.lower().endswith(supported_formats):
-                self.image_paths.append(os.path.join(root_dir, fname))
+        imgs = sorted([f for f in self.root_dir.iterdir() if f.suffix in supported_formats])
+        self.imgs = imgs[:int(len(imgs) * split_set)] if split == "train" else imgs[int(len(imgs) * split_set):]
 
     def __len__(self):
-        return len(self.image_paths)
+        return len(self.imgs)
     
     def __getitem__(self, idx:int):
-        try:
-            img_path = self.image_paths[idx]
-            image = Image.open(img_path)
-        except Exception as e:
-            
-            warnings.warn(f"Error loading image {img_path}: {e}. Returning black image.")
-            return torch.zeros(self.num_channels, 
-                               self.target_size[0], 
-                               self.target_size[1])
+        img = default_loader(self.imgs[idx])
         
-        return util.preprocess_image(image, 
-                                     num_channels=self.num_channels,
-                                     image_size=self.target_size)
-    
-    def get_dataloader(self, batch_size, shuffle=True, num_workers=0):
+        img = util.covert_rgba(img=img,
+                               img_size=self.target_size, 
+                               num_channels=self.num_channels)
+        
+        img = transforms.ToTensor()(img)
+        
+        return img
+        
+class VAEDataModule(pl.LightningDataModule):
+    def __init__(
+        self,
+        data_path: str,
+        train_batch_size: int = 8,
+        val_batch_size: int = 8,
+        img_size: Union[int, Sequence[int]] = (256, 256),
+        num_channels: int = 1,
+        num_workers: int = 0,
+        pin_memory: bool = False,
+        **kwargs,
+    ):
+        super().__init__()
+
+        self.data_dir = data_path
+        self.train_batch_size = train_batch_size
+        self.val_batch_size = val_batch_size
+        self.img_size = img_size
+        self.channels = num_channels
+        self.num_workers = num_workers
+        self.pin_memory = pin_memory
+        
+    def setup(self, stage: Optional[str] = None):
+        
+        self.train_dataset = CustomDataset(
+            data_path=self.data_dir,
+            split='train',
+            target_size=self.img_size,
+            num_channels=self.channels
+        )
+        
+        self.val_dataset = CustomDataset(
+            data_path=self.data_dir,
+            split='test',
+            target_size=self.img_size,
+            num_channels=self.channels
+        )
+        
+    def train_dataloader(self) -> DataLoader:
         return DataLoader(
-            self,      
-            batch_size=batch_size, 
-            shuffle=shuffle,
-            num_workers=num_workers,
-            pin_memory=True
+            self.train_dataset,
+            batch_size=self.train_batch_size,
+            num_workers=self.num_workers,
+            shuffle=True,
+            pin_memory=self.pin_memory,
+        )
+        
+    def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.val_batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+            pin_memory=self.pin_memory,
+        )
+    
+    def test_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
+        return DataLoader(
+            self.val_dataset,
+            batch_size=144,
+            num_workers=self.num_workers,
+            shuffle=True,
+            pin_memory=self.pin_memory,
         )
