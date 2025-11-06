@@ -82,6 +82,7 @@ class VariationalAutoencoder(nn.Module):
     def encode(self, x: Tensor) -> List[Tensor]:
         encoded = self.encoder(x)  # [batch, 256, 16, 16]
         encoded_flat = encoded.view(-1, self.final_feature_dim)  # Flatten
+        
         mu = self.mu_layer(encoded_flat)
         log_var = self.log_var_layer(encoded_flat)
         return [mu, log_var]
@@ -89,6 +90,7 @@ class VariationalAutoencoder(nn.Module):
     def decode(self, z: Tensor) -> Tensor:
         decoder_input = self.decoder_input(z)
         decoder_input = decoder_input.view(-1, 256, self.final_conv_size, self.final_conv_size)
+        
         reconstructed = self.decoder(decoder_input)
         return reconstructed
 
@@ -105,7 +107,6 @@ class VariationalAutoencoder(nn.Module):
         input = args[1]
         mu = args[2]
         log_var = args[3]
-        # assert recons.shape == input.shape, f"Shape mismatch: {recons.shape} vs {input.shape}"
 
         kld_weight = kwargs['M_N']
         recon_loss = F.mse_loss(recons, input)

@@ -19,19 +19,15 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import RichProgressBar
 from pytorch_lightning import seed_everything
 
-
 import dataset as ds
 import shamir as sss
 import graph as plot_graphs
 
-# Root directory
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+import warnings 
 
-# device = t_device("cuda" if t_cuda.is_available() else "cpu")
-# if t_cuda.is_available():
-#     cudnn.benchmark = True 
-# print(f"Using device: {device}")
 
+warnings.filterwarnings("ignore", 
+                        message="Palette images with Transparency expressed in bytes should be converted to RGBA images")
 def main():
     
     config = utility.load_config("config.yml")
@@ -45,7 +41,7 @@ def main():
     data = VAEDataModule(data_path=config['data_params']['data_path'],
                         train_batch_size=config['data_params']['train_batch_size'],
                         val_batch_size=config['data_params']['val_batch_size'],
-                        patch_size=config['model_params']['image_size'],
+                        img_size=config['model_params']['image_size'],
                         num_channels=config['model_params']['in_channels'],
                         num_workers=config['data_params']['num_workers'],
                         pin_memory=config['data_params']['pin_memory']
@@ -62,59 +58,6 @@ def main():
     )
     
     trainer.fit(experiment,data)
-    # # Create necessary directories
-    # util.create_directory(process_path)
-    # util.create_directory(results_path)
-    # util.create_directory(data_path)
-    # util.create_directory(graphs_path)
-    
-    # # Delete previous shares
-    # util.delete_image(os.path.join(BASE_DIR, "shares"))
-    
-    # start = t_cuda.Event(enable_timing=True)
-    # end = t_cuda.Event(enable_timing=True)
-    
-    # train_data_path = os.path.join(BASE_DIR, data_path, image_name, "Training data")
-    # test_data_path  = os.path.join(BASE_DIR, data_path, image_name, "Testing data")
-    
-    # if not os.path.exists(train_data_path) or not os.path.exists(test_data_path):
-    #     raise FileNotFoundError(f"Training or Testing data path does not exist. Please check the directory: {train_data_path} or {test_data_path}")
-
-    # train_dataset = ds.CustomDataset(root_dir=train_data_path, 
-    #                                  target_size=image_size,
-    #                                  in_channels=img_channels)
-    
-    # test_dataset = ds.CustomDataset(root_dir=test_data_path, 
-    #                                  target_size=image_size,
-    #                                  in_channels=img_channels)
-
-    # train_loader = train_dataset.get_dataloader(
-    #     batch_size=batch_size, 
-    #     shuffle=True, 
-    #     num_workers=8 
-    # )
-    
-    # start.record()
-    
-    # # Initialize VAE model 
-    # vae_model = vae_module.VariationalAutoencoder(image_size=image_size, 
-    #                                               latent_dim=latent_dim,
-    #                                               in_channels=img_channels)
-    # vae_model = vae_model.to(device) # Move to GPU
-    
-    # optimizer = t_optim.AdamW(
-    #     vae_model.parameters(), 
-    #     lr=0.001, 
-    #     weight_decay=1e-5) 
-    
-    # scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
-
-    # # Train VAE
-    # vae_model.train_vae(optimizer, scheduler, train_loader, epochs, device, lambda_weight=lambda_weight)
-    # end.record()
-    # t_cuda.synchronize()
-    # print(f"Training time: {start.elapsed_time(end)/60000} mins")
-
     # # Test Image
     # ran_num = torch.randint(0, len(test_dataset), (1,)).item()
     # test_image = test_dataset.__getitem__(ran_num).unsqueeze(0).to(device)  # 讓測試影像也在 GPU

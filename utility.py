@@ -11,7 +11,6 @@ def preprocess_image(image:Image, image_size:int=256, num_channels:int=1, output
 
     if num_channels == 1:
         image = image.convert('L')
-        save_name = "grayscale_image.png"
     else:
         if image.mode in ('RGBA', 'LA', 'P', 'PA'):
 
@@ -24,13 +23,26 @@ def preprocess_image(image:Image, image_size:int=256, num_channels:int=1, output
             
         else:
             image = image.convert('RGB')
-            
-        save_name = "rgb_image.png"
 
     img_resized = image.resize((image_size, image_size))
-    img_resized.save(os.path.join(output_dir, save_name))
+    # img_resized.save(os.path.join(output_dir, save_name))
     
     return ToTensor()(img_resized).float()
+
+def covert_rgba(img:Image, img_size:int, num_channels:int=1):
+    if num_channels == 1:
+            img = img.convert('L')
+    else:
+        if img.mode in ('RGBA', 'LA', 'P', 'PA'):
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            img_rgba = img.convert('RGBA')
+            background.paste(img_rgba, mask=img_rgba.split()[3]) 
+            img = background
+        else:
+            img = img.convert('RGB')
+    img = img.resize((img_size, img_size))
+    
+    return img
 
 def save_image(tensor_image, save_path:str):
     tensor_image = tensor_image.clamp(0, 1)
