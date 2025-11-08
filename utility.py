@@ -1,8 +1,9 @@
 
 import os
-import cv2
 import glob
 import yaml
+import re
+import shutil
 from PIL import Image
 import torch.utils.data
 from torchvision.transforms import ToPILImage
@@ -53,3 +54,34 @@ def load_config(config_path="config.yml"):
         except yaml.YAMLError as exc:
             print(f"Error loading YAML file: {exc}")
             return None
+
+def save_config(config:dict, save_path="config_saved.yml"):
+    with open(save_path, 'w') as file:
+        try:
+            yaml.dump(config, file)
+            print(f"Configuration saved to: {save_path}")
+        except yaml.YAMLError as exc:
+            print(f"Error saving YAML file: {exc}")
+
+def get_next_version_dir(base_log_dir="logs")->str:
+    os.makedirs(base_log_dir, exist_ok=True)
+    
+    existing_dirs = [d for d in os.listdir(base_log_dir) 
+                     if os.path.isdir(os.path.join(base_log_dir, d)) and d.startswith("version_")]
+    
+    next_version = 0
+    if existing_dirs:
+        versions = [int(re.search(r'version_(\d+)', d).group(1)) 
+                    for d in existing_dirs if re.search(r'version_(\d+)', d)]
+        if versions:
+            next_version = max(versions) + 1
+            
+    log_dir = os.path.join(base_log_dir, f"version_{next_version}")
+    os.makedirs(log_dir)
+    
+    print(f"Logs and outputs will be saved to: {log_dir}")
+
+    return log_dir
+
+def join_paths(*paths)->str:
+    return os.path.join(*paths)

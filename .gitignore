@@ -30,6 +30,7 @@ build/
 
 # Logs
 *.log
+logs/
 
 # Config files
 config.yml

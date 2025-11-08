@@ -17,7 +17,7 @@ exp_params:
   LR: 0.001
   weight_decay: 0.000001
   scheduler_gamma: 0.5
-  kld_weight: 0.0005
+  kld_weight: 0.01
   step_size: 20
   device_type: "cuda"
 
@@ -27,4 +27,7 @@ shamir:
   share_path: "Shares/"
 
 logging_params:
-  save_dir: "graph_outputs/"
+  base_dir: "logs/"
+  graph_subdir: "graphs"
+  recon_subdir: "reconstructions"
+  share_subdir: "shares"
