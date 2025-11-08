@@ -1,66 +1,30 @@
-import math
+
 import os
 import cv2
 import glob
+import yaml
 from PIL import Image
-
-import torch.nn as t_nn
-from torch import sum as t_sum
-from torch import mean as t_mean
 import torch.utils.data
-from torchvision.transforms import ToTensor
+from torchvision.transforms import ToPILImage
 
-# def vae_loss_function(reconstructed, original, mu, log_var, lambda_weight:float=0.0001):
-#      # **確保 reconstructed 的 shape 和 original 一樣**
-#     assert reconstructed.shape == original.shape, f"Shape mismatch: {reconstructed.shape} vs {original.shape}"
-
-#     recon_loss = t_nn.MSELoss()(reconstructed, original) # GPU 計算
-#     kl_loss = -0.5 * t_sum(1 + log_var - mu.pow(2) - log_var.exp())  # KL 散度  # GPU 計算
-#     return recon_loss + lambda_weight * kl_loss  # 調整 KL loss 權重
-
-def vae_loss_function(reconstructed, original, mu, log_var, lambda_weight:float=0.0001):
-     # **確保 reconstructed 的 shape 和 original 一樣**
-    assert reconstructed.shape == original.shape, f"Shape mismatch: {reconstructed.shape} vs {original.shape}"
-
-    recon_loss = t_nn.MSELoss()(reconstructed, original) # GPU 計算
-    
-    # 1. Sum over the latent dimensions (dim=1)
-    kl_loss_per_item = -0.5 * t_sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
-    # 2. Average across the batch
-    kl_loss = t_mean(kl_loss_per_item) # GPU 計算
-    
-    return recon_loss + lambda_weight * kl_loss
-
-# 預處理影像
-def preprocess_image(image:Image, image_size=(256,256), num_channels:int=1, output_dir="preprocessed"):
-    create_directory(output_dir)
-
+def covert_rgba(img:Image, img_size:int, num_channels:int=1):
     if num_channels == 1:
-        image = image.convert('L')
-        save_name = "grayscale_image.png"
+            img = img.convert('L')
     else:
-        if image.mode in ('RGBA', 'LA', 'P', 'PA'):
-
-            background = Image.new("RGB", image.size, (255, 255, 255))
-            
-            image_rgba = image.convert('RGBA')
-            
-            background.paste(image_rgba, mask=image_rgba.split()[3]) 
-            image = background
-            
+        if img.mode in ('RGBA', 'LA', 'P', 'PA'):
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            img_rgba = img.convert('RGBA')
+            background.paste(img_rgba, mask=img_rgba.split()[3]) 
+            img = background
         else:
-            image = image.convert('RGB')
-            
-        save_name = "rgb_image.png"
-
-    img_resized = image.resize((image_size[0], image_size[1]))
-    img_resized.save(os.path.join(output_dir, save_name))
+            img = img.convert('RGB')
+    img = img.resize((img_size, img_size))
     
-    return ToTensor()(img_resized).float()
+    return img
 
 def save_image(tensor_image, save_path:str):
     tensor_image = tensor_image.clamp(0, 1)
-    pil_image = ToTensor().to_pil_image(tensor_image.cpu())
+    pil_image = ToPILImage()(tensor_image.cpu())
     pil_image.save(save_path)
 
 def load_image(image_path:str):
@@ -79,3 +43,13 @@ def get_images_in_paths(folder_path:str,img_name="*.png"):
     if img_name!="*.png":
         img_name = f"{img_name}*.png"
     return glob.glob(os.path.join(folder_path, img_name))
+
+def load_config(config_path="config.yml"):
+    print(f"Loading configuration from: {config_path}")
+    with open(config_path, 'r') as file:
+        try:
+            config = yaml.safe_load(file)
+            return config
+        except yaml.YAMLError as exc:
+            print(f"Error loading YAML file: {exc}")
+            return None

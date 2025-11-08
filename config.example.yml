@@ -1,0 +1,30 @@
+model_params:
+  in_channels: 1
+  latent_dim: 1024
+  image_size: 128
+  manual_seed: 67
+
+data_params:
+  data_path: "Data/"
+  train_batch_size: 64
+  val_batch_size:  64
+  split_ratio: 0.8
+  num_workers: 8
+  pin_memory: True
+
+exp_params:
+  max_epochs: 10
+  LR: 0.001
+  weight_decay: 0.000001
+  scheduler_gamma: 0.5
+  kld_weight: 0.0005
+  step_size: 20
+  device_type: "cuda"
+
+shamir:
+  num_shares: 5
+  threshold: 3
+  share_path: "Shares/"
+
+logging_params:
+  save_dir: "graph_outputs/"
