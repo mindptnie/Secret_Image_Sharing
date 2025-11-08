@@ -1,0 +1,35 @@
+# Directories to ignore
+old/
+Pic/*
+reconstructed_outputs/
+results/
+Shares/
+graph_outputs/
+Data/
+lightning_logs/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# IDE/Editor metadata
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Config files
+config.yml
