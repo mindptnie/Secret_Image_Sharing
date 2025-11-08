@@ -5,7 +5,7 @@ import glob
 import yaml
 from PIL import Image
 import torch.utils.data
-from torchvision.transforms import ToTensor
+from torchvision.transforms import ToPILImage
 
 def covert_rgba(img:Image, img_size:int, num_channels:int=1):
     if num_channels == 1:
@@ -24,7 +24,7 @@ def covert_rgba(img:Image, img_size:int, num_channels:int=1):
 
 def save_image(tensor_image, save_path:str):
     tensor_image = tensor_image.clamp(0, 1)
-    pil_image = ToTensor().to_pil_image(tensor_image.cpu())
+    pil_image = ToPILImage()(tensor_image.cpu())
     pil_image.save(save_path)
 
 def load_image(image_path:str):

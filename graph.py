@@ -12,13 +12,13 @@ def calculate_statistics(img_path1:str, img_path2:str, output_dir="graph_outputs
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         
-    if num_channels == 1:
-        gt_filename = 'grayscale_image.png'
-    else:
-        gt_filename = 'rgb_image.png'
+    # if num_channels == 1:
+    #     gt_filename = 'grayscale_image.png'
+    # else:
+    #     gt_filename = 'rgb_image.png'
         
-    folder_GT = os.path.join(BASE_DIR, img_path1, gt_filename)
-    folder_Gen = os.path.join(BASE_DIR, img_path2, 'reconstructed_image.png')
+    folder_GT = os.path.join(BASE_DIR, img_path1)
+    folder_Gen = os.path.join(BASE_DIR, img_path2)
     
     print(f"GT path: {folder_GT}")
     print(f"Gen path: {folder_Gen}")
@@ -134,8 +134,9 @@ def save_ssim_plot(ssim_value, output_dir):
     # plt.show()
 
 def loss_curve(epochs, loss_history, output_dir="graph_outputs"):
-    print("模型與 loss 已儲存到 vae.pth")
-    # 繪製 Loss 圖
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        
     plt.figure(figsize=(8, 6))
     plt.plot(range(1, epochs + 1), loss_history, label="Loss", color="red")
     plt.xlabel("Epochs")
@@ -151,7 +152,9 @@ def loss_curve(epochs, loss_history, output_dir="graph_outputs"):
     plt.show()
 
 def learning_rate(epochs, lr_history, output_dir="graph_outputs"):
-    # 繪製 Learning Rate 圖
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        
     plt.figure(figsize=(8, 6))
     plt.plot(range(1, epochs + 1), lr_history, label="Learning Rate", color="blue")
     plt.xlabel("Epochs")

@@ -1,9 +1,9 @@
 # Directories to ignore
 old/
 Pic/*
-preprocessed/
+reconstructed_outputs/
 results/
-shares/
+Shares/
 graph_outputs/
 Data/
 lightning_logs/

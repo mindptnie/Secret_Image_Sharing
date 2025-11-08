@@ -10,6 +10,8 @@ from torch import tensor as Tensor
 from torch.utils.data import DataLoader
 from torch.amp import autocast, GradScaler
 
+import graph
+
 class Experiment():
     def __init__(self, 
                 vae: VariationalAutoencoder, 
@@ -40,6 +42,9 @@ class Experiment():
         return optimizer, scheduler
     
     def train(self, train_dataloader: DataLoader, optimizer, scheduler, device):
+        
+        loss_history = []
+        lr_history = []
         
         self.vae.to(device)
         self.vae.train()
@@ -76,7 +81,11 @@ class Experiment():
             scheduler.step()
             avg_epoch_loss = epoch_loss / len(train_dataloader)
             current_lr = optimizer.param_groups[0]['lr']
-            tqdm.write(f"Epoch [{epoch+1}/{self.params['max_epochs']}], Avg. Loss: {avg_epoch_loss:.4f}, LR: {current_lr:.8f}")
+            
+            loss_history.append(avg_epoch_loss)
+            lr_history.append(current_lr)
+            
+            tqdm.write(f"Epoch [{epoch+1}/{self.params['max_epochs']}], Avg. Loss: {avg_epoch_loss:.8f}, LR: {current_lr:.8f}")
         
         
         total_end_time = time.time()
@@ -84,4 +93,7 @@ class Experiment():
         
         print("\nTraining finished!")
         print(f"Total training time: {total_duration_sec / 60:.2f} minutes ({total_duration_sec:.2f} seconds)")
+        
+        graph.loss_curve(epochs=self.params['max_epochs'],loss_history=loss_history)
+        graph.learning_rate(epochs=self.params['max_epochs'],lr_history=lr_history)
         

@@ -1,5 +1,5 @@
 model_params:
-  in_channels: 3
+  in_channels: 1
   latent_dim: 1024
   image_size: 128
   manual_seed: 67
@@ -8,6 +8,7 @@ data_params:
   data_path: "Data/"
   train_batch_size: 64
   val_batch_size:  64
+  split_ratio: 0.8
   num_workers: 8
   pin_memory: True
 
@@ -23,8 +24,7 @@ exp_params:
 shamir:
   num_shares: 5
   threshold: 3
-
-trainer_params:
+  share_path: "Shares/"
 
 logging_params:
-  save_dir: "logs/"
+  save_dir: "graph_outputs/"
