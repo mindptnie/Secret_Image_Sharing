@@ -133,17 +133,17 @@ class Experiment():
             current_lr = optimizer.param_groups[0]['lr']
             lr_history.append(current_lr)
             
-            log_msg = (f"Epoch [{epoch+1}/{self.params['max_epochs']}], "
-                       f"Avg. Loss: {avg_epoch_loss:.8f}, ")
+            log_msg = (f"Epoch [{epoch+1}/{self.params['max_epochs']}] | "
+                       f"Avg. Loss: {avg_epoch_loss:.8f} | ")
             if val_dataloader is not None:
-                log_msg += f"Avg. Val Loss: {avg_val_loss:.8f}, "
-            log_msg += (f"LR: {current_lr:.8f}")
+                log_msg += f"Avg. Val Loss: {avg_val_loss:.8f} | "
+            log_msg += (f"LR: {current_lr:.8f} | ")
             tqdm.write(log_msg)
         
         total_end_time = time.time()
         total_duration_sec = total_end_time - total_start_time
         
-        print("\nTraining finished!")
+        print("Training finished!")
         print(f"Total training time: {total_duration_sec / 60:.2f} minutes ({total_duration_sec:.2f} seconds)")
         
         return {

@@ -26,6 +26,7 @@ def main():
     
     config = util.load_config("config.yml")
     
+    util.create_directory(config['logging_params']['base_dir'])
     base_log_dir = config['logging_params']['base_dir']
     log_dir = util.get_next_version_dir(base_log_dir)
     
@@ -71,16 +72,21 @@ def main():
                               output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
                               )
     
-    print("Loading a random test image...")
-    val_dataset = data.val_dataset 
-    ran_num = torch.randint(0, len(val_dataset), (1,)).item()
-    test_image = val_dataset[ran_num].unsqueeze(0).to(device)
+    print("Starting testing and secret sharing...")
+    # val_dataset = data.val_dataset 
+    # ran_num = torch.randint(0, len(val_dataset), (1,)).item()
+    # test_image = val_dataset[ran_num].unsqueeze(0).to(device)
+    
+    test_image = util.get_test_image(
+                        directory=config['data_params']['data_path'],
+                        param=config['model_params'],
+                        device=device
+                        )
     
     util.save_image(test_image.squeeze(0),
-                    util.join_paths(log_dir, 
-                                    config['logging_params']['recon_subdir'], 
+                    util.join_paths(log_dir, config['logging_params']['recon_subdir'], 
                                     "original_image.png") 
-                )
+                    )
     
     with torch.no_grad():
         reconstructed_image = model.generate(test_image)

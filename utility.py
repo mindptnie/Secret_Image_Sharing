@@ -6,7 +6,12 @@ import re
 import shutil
 from PIL import Image
 import torch.utils.data
-from torchvision.transforms import ToPILImage
+from torchvision.transforms import ToPILImage,ToTensor
+
+def covert_to_png(image_path:str, save_path:str):
+    img = Image.open(image_path)
+    img = img.convert('RGB')
+    img.save(save_path, 'PNG')
 
 def covert_rgba(img:Image, img_size:int, num_channels:int=1):
     if num_channels == 1:
@@ -22,6 +27,11 @@ def covert_rgba(img:Image, img_size:int, num_channels:int=1):
     img = img.resize((img_size, img_size))
     
     return img
+
+def covert_to_tensor(img:Image, img_size:int, num_channels:int=1):
+    img = covert_rgba(img, img_size, num_channels)
+    tensor_img = ToTensor()(img)
+    return tensor_img
 
 def save_image(tensor_image, save_path:str):
     tensor_image = tensor_image.clamp(0, 1)
@@ -44,6 +54,10 @@ def get_images_in_paths(folder_path:str,img_name="*.png"):
     if img_name!="*.png":
         img_name = f"{img_name}*.png"
     return glob.glob(os.path.join(folder_path, img_name))
+
+def get_img_files_in_directory(directory:str, pattern:str="*.png")->list:
+    search_pattern = os.path.join(directory, pattern)
+    return glob.glob(search_pattern)
 
 def load_config(config_path="config.yml"):
     print(f"Loading configuration from: {config_path}")
@@ -85,3 +99,15 @@ def get_next_version_dir(base_log_dir="logs")->str:
 
 def join_paths(*paths)->str:
     return os.path.join(*paths)
+
+def get_test_image(directory:str, param:dict,device)->torch.Tensor:
+    test_image_path = get_img_files_in_directory(
+                            directory=directory,
+                            pattern="1 (1644).jpg"
+                        )[0]
+    test_image = covert_to_tensor(
+                        img=load_image(test_image_path),
+                        img_size=param['image_size'],
+                        num_channels=param['in_channels']
+                    ).unsqueeze(0).to(device)
+    return test_image
