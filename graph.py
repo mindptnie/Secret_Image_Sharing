@@ -8,14 +8,9 @@ import utility as util
 # Root directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def calculate_statistics(img_path1:str, img_path2:str, output_dir="graph_outputs", num_channels:int=1):
+def statistics(img_path1:str, img_path2:str, output_dir="graphs"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-        
-    # if num_channels == 1:
-    #     gt_filename = 'grayscale_image.png'
-    # else:
-    #     gt_filename = 'rgb_image.png'
         
     folder_GT = os.path.join(BASE_DIR, img_path1)
     folder_Gen = os.path.join(BASE_DIR, img_path2)
@@ -133,7 +128,7 @@ def save_ssim_plot(ssim_value, output_dir):
     
     # plt.show()
 
-def loss_curve(epochs, loss_history, output_dir="graph_outputs"):
+def loss_curve(epochs, loss_history, output_dir="graphs"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         
@@ -151,7 +146,7 @@ def loss_curve(epochs, loss_history, output_dir="graph_outputs"):
     
     plt.show()
 
-def learning_rate(epochs, lr_history, output_dir="graph_outputs"):
+def learning_rate(epochs, lr_history, output_dir="graphs"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         
@@ -169,7 +164,7 @@ def learning_rate(epochs, lr_history, output_dir="graph_outputs"):
     
     plt.show()
 
-def show_image(original_image, reconstructed_from_combined, image_size:tuple, output_dir="graph_outputs"):
+def show_image(original_image, reconstructed_from_combined, image_size:tuple, output_dir="graphs"):
     
     plt.subplot(1, 2, 1)
     plt.imshow(original_image.view(image_size[0], image_size[1]).cpu().numpy(), cmap="gray")

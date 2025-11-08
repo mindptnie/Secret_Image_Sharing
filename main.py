@@ -26,6 +26,16 @@ def main():
     
     config = util.load_config("config.yml")
     
+    util.create_directory(config['logging_params']['base_dir'])
+    base_log_dir = config['logging_params']['base_dir']
+    log_dir = util.get_next_version_dir(base_log_dir)
+    
+    util.create_directory(util.join_paths(log_dir, config['logging_params']['graph_subdir']))
+    util.create_directory(util.join_paths(log_dir, config['logging_params']['recon_subdir']))
+    util.create_directory(util.join_paths(log_dir, config['logging_params']['share_subdir']))
+    util.save_config(config, 
+                     save_path=util.join_paths(log_dir, "config_used.yml"))
+    
     model = VariationalAutoencoder(image_size=config['model_params']['image_size'], 
                                   latent_dim=config['model_params']['latent_dim'],
                                   num_channels=config['model_params']['in_channels']
@@ -46,17 +56,38 @@ def main():
     
     optimizer, scheduler = expiriment.configure_optimizers()
     
-    expiriment.train(data.train_dataloader(), optimizer, scheduler, device)
+    history = expiriment.train(train_dataloader=data.train_dataloader(),
+                    # val_dataloader=data.val_dataloader(),
+                    optimizer=optimizer, 
+                    scheduler=scheduler, 
+                    device=device)
     
-    print("Loading a random test image...")
-    val_dataset = data.val_dataset 
-    ran_num = torch.randint(0, len(val_dataset), (1,)).item()
-    test_image = val_dataset[ran_num].unsqueeze(0).to(device)
+    plot_graphs.loss_curve(epochs=config['exp_params']['max_epochs'],
+                           loss_history=history['train_loss'],
+                           output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
+                           )
     
-    util.save_image(test_image.squeeze(0), 
-                os.path.join("reconstructed_outputs", "reconstructed_image.png"))
-    util.create_directory("reconstructed_outputs")
-
+    plot_graphs.learning_rate(epochs=config['exp_params']['max_epochs'],
+                              lr_history=history['learning_rate'],
+                              output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
+                              )
+    
+    print("Starting testing and secret sharing...")
+    # val_dataset = data.val_dataset 
+    # ran_num = torch.randint(0, len(val_dataset), (1,)).item()
+    # test_image = val_dataset[ran_num].unsqueeze(0).to(device)
+    
+    test_image = util.get_test_image(
+                        directory=config['data_params']['data_path'],
+                        param=config['model_params'],
+                        device=device
+                        )
+    
+    util.save_image(test_image.squeeze(0),
+                    util.join_paths(log_dir, config['logging_params']['recon_subdir'], 
+                                    "original_image.png") 
+                    )
+    
     with torch.no_grad():
         reconstructed_image = model.generate(test_image)
         
@@ -67,7 +98,7 @@ def main():
                     latent.squeeze(0).cpu(), # [latent_dim]
                     n=config['shamir']['num_shares'], 
                     r=config['shamir']['threshold'],
-                    output_dir=config['shamir']['share_path']
+                    output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
                 )
         
         combined_latent = sss.combine_shares(shares_with_positions, config['shamir']['threshold']).unsqueeze(0).to(device)
@@ -78,15 +109,19 @@ def main():
         print(f"Reconstructed latent (first 5): {combined_latent.squeeze(0)[:5]}")
         
         util.save_image(reconstructed_from_combined.squeeze(0), 
-                    os.path.join("reconstructed_outputs", "reconstructed_from_combined.png"))
+                    util.join_paths(log_dir, config['logging_params']['recon_subdir'], "reconstructed_from_combined.png")
+                    )
     
     
-    plot_graphs.calculate_statistics(img_path1=os.path.join("reconstructed_outputs", 
-                                                            "reconstructed_image.png"),
-                                     img_path2=os.path.join("reconstructed_outputs", 
-                                                            "reconstructed_from_combined.png"), 
-                                     output_dir=config['logging_params']['save_dir'],
-                                     num_channels=config['model_params']['in_channels'])
+    plot_graphs.statistics(img_path1=util.join_paths(log_dir, 
+                                                    config['logging_params']['recon_subdir'], 
+                                                    "original_image.png"),
+                            img_path2=util.join_paths(log_dir, 
+                                                    config['logging_params']['recon_subdir'], 
+                                                    "reconstructed_from_combined.png"), 
+                            output_dir=util.join_paths(log_dir, 
+                                                    config['logging_params']['graph_subdir'])
+                            )
     
 if __name__ == "__main__":
     main()
