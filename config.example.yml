@@ -24,7 +24,6 @@ exp_params:
 shamir:
   num_shares: 5
   threshold: 3
-  share_path: "Shares/"
 
 logging_params:
   base_dir: "logs/"
