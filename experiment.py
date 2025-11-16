@@ -95,6 +95,10 @@ class Experiment():
                 
                 scaler.scale(loss).backward()
                 
+                scaler.unscale_(optimizer)
+                
+                torch.nn.utils.clip_grad_norm_(self.vae.parameters(), max_norm=1.0)
+                
                 scaler.step(optimizer)
 
                 scaler.update()

@@ -23,29 +23,37 @@ class VariationalAutoencoder(nn.Module):
         self.latent_dim = latent_dim
         self.num_channels = num_channels
         
-        # Calculate the size after convolutions
-        # For 256x256: 256 -> 128 -> 64 -> 32 -> 16
-        self.final_conv_size = image_size // 16
-        self.final_feature_dim = 256 * self.final_conv_size * self.final_conv_size
-        
-        # Encoder - Convolutional layers
+        # Calculate the size after convolutions (UPDATED!)
+        # For 256x256: 256 -> 128 -> 64 -> 32 -> 16 -> 8
+        self.final_conv_size = image_size // 32 
+        # (If image_size=256, self.final_conv_size will be 8)
+        self.final_feature_dim = 512 * self.final_conv_size * self.final_conv_size
+        # (512 is the new output channel count)
+
+        # Encoder - Convolutional layers (UPDATED!)
         self.encoder = nn.Sequential(
             # Input: [batch, 1, 256, 256]
             nn.Conv2d(self.num_channels, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
             nn.BatchNorm2d(32),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2),
             
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),  # -> [batch, 64, 64, 64]
             nn.BatchNorm2d(64),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2),
             
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
             nn.BatchNorm2d(128),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2),
             
             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # -> [batch, 256, 16, 16]
             nn.BatchNorm2d(256),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2),
+            
+            # --- 💡 NEW CONV2D LAYER (BLOCK 5) ---
+            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1), # -> [batch, 512, 8, 8]
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            # -------------------------------------
         )
         
         # Latent space layers
@@ -55,20 +63,26 @@ class VariationalAutoencoder(nn.Module):
         # Projection from latent to decoder input
         self.decoder_input = nn.Linear(latent_dim, self.final_feature_dim)
         
-        # Decoder - Transposed Convolutional layers
+        # Decoder - Transposed Convolutional layers (UPDATED!)
         self.decoder = nn.Sequential(
-            # Input: [batch, 256, 16, 16]
+            # Input: [batch, 512, 8, 8] (จากการแปลง self.decoder_input)
+            # --- 💡 NEW TRANSPOSED CONV2D LAYER (BLOCK 1) ---
+            nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1), # -> [batch, 256, 16, 16]
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            # -----------------------------------------------
+            
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
             nn.BatchNorm2d(128),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2),
             
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # -> [batch, 64, 64, 64]
             nn.BatchNorm2d(64),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2),
             
             nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
             nn.BatchNorm2d(32),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2),
             
             nn.ConvTranspose2d(32, self.num_channels, kernel_size=4, stride=2, padding=1),  # -> [batch, 1, 256, 256]
             nn.Sigmoid(),
@@ -89,7 +103,7 @@ class VariationalAutoencoder(nn.Module):
     
     def decode(self, z: Tensor) -> Tensor:
         decoder_input = self.decoder_input(z)
-        decoder_input = decoder_input.view(-1, 256, self.final_conv_size, self.final_conv_size)
+        decoder_input = decoder_input.view(-1, 512, self.final_conv_size, self.final_conv_size)
         
         reconstructed = self.decoder(decoder_input)
         return reconstructed
