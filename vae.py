@@ -1,5 +1,3 @@
-# https://github.com/AntixK/PyTorch-VAE/blob/master/models/vanilla_vae.py
-
 import time
 from tqdm import tqdm
 
@@ -12,25 +10,87 @@ from typing import List
 
 import graph as plot_graphs
 
-class VariationalAutoencoder(nn.Module):
+
+class VectorQuantizer(nn.Module):
+    """
+    Vector Quantization layer that replaces continuous latent space with discrete codebook
+    """
+    def __init__(self, num_embeddings: int, embedding_dim: int, commitment_cost: float = 0.25):
+        super().__init__()
+        self.num_embeddings = num_embeddings  # Size of codebook
+        self.embedding_dim = embedding_dim    # Dimension of each embedding
+        self.commitment_cost = commitment_cost
+        
+        # Initialize codebook
+        self.embedding = nn.Embedding(num_embeddings, embedding_dim)
+        self.embedding.weight.data.uniform_(-1.0 / num_embeddings, 1.0 / num_embeddings)
+        
+    def forward(self, z: Tensor) -> tuple:
+        """
+        Args:
+            z: Encoder output [batch, embedding_dim, height, width]
+        Returns:
+            quantized: Quantized version [batch, embedding_dim, height, width]
+            loss: VQ loss (commitment + codebook)
+            encoding_indices: Codebook indices [batch, height, width]
+        """
+        # Convert from [B, C, H, W] to [B, H, W, C]
+        z = z.permute(0, 2, 3, 1).contiguous()
+        z_flattened = z.view(-1, self.embedding_dim)  # [B*H*W, C]
+        
+        # Calculate distances to codebook vectors
+        # (z - e)^2 = z^2 + e^2 - 2*z*e
+        distances = (
+            torch.sum(z_flattened ** 2, dim=1, keepdim=True)
+            + torch.sum(self.embedding.weight ** 2, dim=1)
+            - 2 * torch.matmul(z_flattened, self.embedding.weight.t())
+        )
+        
+        # Find closest codebook entry
+        encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
+        encodings = torch.zeros(encoding_indices.shape[0], self.num_embeddings, device=z.device)
+        encodings.scatter_(1, encoding_indices, 1)
+        
+        # Quantize
+        quantized = torch.matmul(encodings, self.embedding.weight)
+        quantized = quantized.view(z.shape)
+        
+        # Calculate VQ losses
+        e_latent_loss = F.mse_loss(quantized.detach(), z)
+        q_latent_loss = F.mse_loss(quantized, z.detach())
+        loss = q_latent_loss + self.commitment_cost * e_latent_loss
+        
+        # Straight-through estimator
+        quantized = z + (quantized - z).detach()
+        
+        # Convert back to [B, C, H, W]
+        quantized = quantized.permute(0, 3, 1, 2).contiguous()
+        
+        # Reshape encoding indices
+        encoding_indices = encoding_indices.view(z.shape[0], z.shape[1], z.shape[2])
+        
+        return quantized, loss, encoding_indices
+
+
+class VQVariationalAutoencoder(nn.Module):
     def __init__(self, 
                  image_size: int, 
-                 latent_dim: int , 
-                 num_channels: int =1) -> None:
+                 num_embeddings: int = 512,  # Codebook size
+                 embedding_dim: int = 64,    # Dimension of each code
+                 num_channels: int = 1,
+                 commitment_cost: float = 0.25) -> None:
         super().__init__()
         
         self.image_size = image_size
-        self.latent_dim = latent_dim
+        self.num_embeddings = num_embeddings
+        self.embedding_dim = embedding_dim
         self.num_channels = num_channels
         
-        # Calculate the size after convolutions (UPDATED!)
+        # Calculate the size after convolutions
         # For 256x256: 256 -> 128 -> 64 -> 32 -> 16 -> 8
         self.final_conv_size = image_size // 32 
-        # (If image_size=256, self.final_conv_size will be 8)
-        self.final_feature_dim = 512 * self.final_conv_size * self.final_conv_size
-        # (512 is the new output channel count)
-
-        # Encoder - Convolutional layers (UPDATED!)
+        
+        # Encoder - Convolutional layers (same as before)
         self.encoder = nn.Sequential(
             # Input: [batch, 1, 256, 256]
             nn.Conv2d(self.num_channels, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
@@ -49,28 +109,30 @@ class VariationalAutoencoder(nn.Module):
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             
-            # --- 💡 NEW CONV2D LAYER (BLOCK 5) ---
             nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1), # -> [batch, 512, 8, 8]
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2),
-            # -------------------------------------
         )
         
-        # Latent space layers
-        self.mu_layer = nn.Linear(self.final_feature_dim, latent_dim)
-        self.log_var_layer = nn.Linear(self.final_feature_dim, latent_dim)
+        # Project to embedding dimension for quantization
+        self.pre_quantization_conv = nn.Conv2d(512, embedding_dim, kernel_size=1)
         
-        # Projection from latent to decoder input
-        self.decoder_input = nn.Linear(latent_dim, self.final_feature_dim)
+        # Vector Quantizer
+        self.vector_quantizer = VectorQuantizer(
+            num_embeddings=num_embeddings,
+            embedding_dim=embedding_dim,
+            commitment_cost=commitment_cost
+        )
         
-        # Decoder - Transposed Convolutional layers (UPDATED!)
+        # Project back from embedding dimension
+        self.post_quantization_conv = nn.Conv2d(embedding_dim, 512, kernel_size=1)
+        
+        # Decoder - Transposed Convolutional layers (same as before)
         self.decoder = nn.Sequential(
-            # Input: [batch, 512, 8, 8] (จากการแปลง self.decoder_input)
-            # --- 💡 NEW TRANSPOSED CONV2D LAYER (BLOCK 1) ---
+            # Input: [batch, 512, 8, 8]
             nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1), # -> [batch, 256, 16, 16]
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-            # -----------------------------------------------
             
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
             nn.BatchNorm2d(128),
@@ -87,56 +149,125 @@ class VariationalAutoencoder(nn.Module):
             nn.ConvTranspose2d(32, self.num_channels, kernel_size=4, stride=2, padding=1),  # -> [batch, 1, 256, 256]
             nn.Sigmoid(),
         )
-
-    def reparameterize(self, mu:Tensor, log_var:Tensor) -> Tensor:
-        std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(std)
-        return mu + eps * std
     
-    def encode(self, x: Tensor) -> List[Tensor]:
-        encoded = self.encoder(x)  # [batch, 256, 16, 16]
-        encoded_flat = encoded.view(-1, self.final_feature_dim)  # Flatten
-        
-        mu = self.mu_layer(encoded_flat)
-        log_var = self.log_var_layer(encoded_flat)
-        return [mu, log_var]
+    def encode(self, x: Tensor) -> tuple:
+        """
+        Encode input and get quantized representation
+        """
+        encoded = self.encoder(x)  # [batch, 512, 8, 8]
+        z_e = self.pre_quantization_conv(encoded)  # [batch, embedding_dim, 8, 8]
+        return z_e
     
-    def decode(self, z: Tensor) -> Tensor:
-        decoder_input = self.decoder_input(z)
-        decoder_input = decoder_input.view(-1, 512, self.final_conv_size, self.final_conv_size)
-        
-        reconstructed = self.decoder(decoder_input)
+    def decode(self, z_q: Tensor) -> Tensor:
+        """
+        Decode from quantized representation
+        """
+        z = self.post_quantization_conv(z_q)  # [batch, 512, 8, 8]
+        reconstructed = self.decoder(z)
         return reconstructed
 
     def forward(self, x: Tensor) -> List[Tensor]:
-        mu, log_var = self.encode(x)
-        z = self.reparameterize(mu, log_var)
+        # Encode
+        z_e = self.encode(x)
         
-        return [self.decode(z), x, mu, log_var]
+        # Quantize
+        z_q, vq_loss, encoding_indices = self.vector_quantizer(z_e)
+        
+        # Decode
+        reconstructed = self.decode(z_q)
+        
+        return [reconstructed, x, vq_loss, encoding_indices]
     
-    def loss_function(self,
-                      *args,
-                      **kwargs) -> dict:
+    def loss_function(self, *args, **kwargs) -> dict:
+        """
+        Calculate VQ-VAE loss
+        """
         recons = args[0]
         input = args[1]
-        mu = args[2]
-        log_var = args[3]
-
-        kld_weight = kwargs['M_N']
+        vq_loss = args[2]
+        
+        # Reconstruction loss
         recon_loss = F.mse_loss(recons, input)
         
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+        # Total loss
+        loss = recon_loss + vq_loss
         
-        loss = recon_loss + kld_weight * kld_loss
-        
-        return {'loss': loss, 'Reconstruction_Loss':recon_loss.detach(), 'KLD':-kld_loss.detach()}
-
+        return {
+            'loss': loss, 
+            'Reconstruction_Loss': recon_loss.detach(), 
+            'VQ_Loss': vq_loss.detach()
+        }
+    
     def sample(self, num_samples: int, device: torch.device) -> Tensor:
-        z = torch.randn(num_samples, self.latent_dim)
-        z = z.to(device)
+        """
+        Sample from the codebook randomly
+        """
+        # Randomly sample codebook indices
+        indices = torch.randint(
+            0, self.num_embeddings, 
+            (num_samples, self.final_conv_size, self.final_conv_size),
+            device=device
+        )
         
-        samples = self.decode(z)
+        # Convert indices to one-hot
+        one_hot = F.one_hot(indices, num_classes=self.num_embeddings).float()
+        
+        # Get embeddings
+        quantized = torch.matmul(
+            one_hot.view(-1, self.num_embeddings),
+            self.vector_quantizer.embedding.weight
+        )
+        
+        # Reshape to [batch, height, width, embedding_dim]
+        quantized = quantized.view(
+            num_samples, 
+            self.final_conv_size, 
+            self.final_conv_size, 
+            self.embedding_dim
+        )
+        
+        # Convert to [batch, embedding_dim, height, width]
+        quantized = quantized.permute(0, 3, 1, 2).contiguous()
+        
+        # Decode
+        samples = self.decode(quantized)
         return samples
     
     def generate(self, x: Tensor) -> Tensor:
+        """
+        Generate reconstruction
+        """
         return self.forward(x)[0]
+    
+    def get_codebook_indices(self, x: Tensor) -> Tensor:
+        """
+        Get the codebook indices for an input
+        """
+        z_e = self.encode(x)
+        _, _, encoding_indices = self.vector_quantizer(z_e)
+        return encoding_indices
+    
+    def decode_from_indices(self, indices: Tensor) -> Tensor:
+        """
+        Decode from codebook indices
+        Args:
+            indices: [batch, height, width] codebook indices
+        """
+        # Convert indices to one-hot
+        one_hot = F.one_hot(indices.long(), num_classes=self.num_embeddings).float()
+        
+        # Get embeddings
+        quantized = torch.matmul(
+            one_hot.view(-1, self.num_embeddings),
+            self.vector_quantizer.embedding.weight
+        )
+        
+        # Reshape to [batch, height, width, embedding_dim]
+        batch_size, height, width = indices.shape
+        quantized = quantized.view(batch_size, height, width, self.embedding_dim)
+        
+        # Convert to [batch, embedding_dim, height, width]
+        quantized = quantized.permute(0, 3, 1, 2).contiguous()
+        
+        # Decode
+        return self.decode(quantized)

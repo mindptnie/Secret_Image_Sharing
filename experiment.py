@@ -4,7 +4,7 @@ import math
 import torch
 import time
 from tqdm import tqdm
-from vae import VariationalAutoencoder
+from vae import VQVariationalAutoencoder
 from torch import optim
 from torch import tensor as Tensor
 from torch.utils.data import DataLoader
@@ -14,7 +14,7 @@ import graph
 
 class Experiment():
     def __init__(self, 
-                vae: VariationalAutoencoder, 
+                vae: VQVariationalAutoencoder, 
                 params: dict):
         self.vae = vae
         self.params = params
