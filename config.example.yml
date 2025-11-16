@@ -3,9 +3,6 @@ model_params:
   latent_dim: 1024
   image_size: 128
   manual_seed: 67
-  num_embeddings: 512      # Size of codebook (number of discrete codes)
-  embedding_dim: 64        # Dimension of each code vector
-  commitment_cost: 0.25    # Weight for commitment loss
   
 data_params:
   data_path: "Data/"
