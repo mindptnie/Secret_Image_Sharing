@@ -42,6 +42,7 @@ class VAEDataModule(pl.LightningDataModule):
         train_batch_size: int = 8,
         val_batch_size: int = 8,
         img_size: Union[int, Sequence[int]] = (256, 256),
+        split_ratio: float = 0.8,
         num_channels: int = 1,
         num_workers: int = 0,
         pin_memory: bool = False,
@@ -56,6 +57,7 @@ class VAEDataModule(pl.LightningDataModule):
         self.channels = num_channels
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+        self.split_ratio = split_ratio
         
     def setup(self, stage: Optional[str] = None):
         transform_list = []
@@ -74,6 +76,7 @@ class VAEDataModule(pl.LightningDataModule):
             data_path=self.data_dir,
             transform=train_transforms,
             split='train',
+            split_set=self.split_ratio,
             target_size=self.img_size,
             num_channels=self.channels
         )
@@ -82,6 +85,7 @@ class VAEDataModule(pl.LightningDataModule):
             data_path=self.data_dir,
             transform=val_transforms,
             split='test',
+            split_set=self.split_ratio,
             target_size=self.img_size,
             num_channels=self.channels
         )
