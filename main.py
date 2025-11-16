@@ -1,10 +1,9 @@
 import os
-
 import torch
 from torch import cuda
 from torch.backends import cudnn
 
-from vae import VariationalAutoencoder
+from vae import VQVariationalAutoencoder
 from dataset import VAEDataModule
 from experiment import Experiment
 
@@ -36,92 +35,133 @@ def main():
     util.save_config(config, 
                      save_path=util.join_paths(log_dir, "config_used.yml"))
     
-    model = VariationalAutoencoder(image_size=config['model_params']['image_size'], 
-                                  latent_dim=config['model_params']['latent_dim'],
-                                  num_channels=config['model_params']['in_channels']
-                                  )
+    # Create VQ-VAE model instead of VAE
+    model = VQVariationalAutoencoder(
+        image_size=config['model_params']['image_size'], 
+        num_embeddings=config['model_params'].get('num_embeddings', 512),  # Codebook size
+        embedding_dim=config['model_params'].get('embedding_dim', 64),      # Code dimension
+        num_channels=config['model_params']['in_channels'],
+        commitment_cost=config['model_params'].get('commitment_cost', 0.25)
+    )
     
-    expiriment = Experiment(vae=model, params=config['exp_params'])
+    print(f"VQ-VAE created with codebook size: {model.num_embeddings}, embedding dim: {model.embedding_dim}")
     
-    data = VAEDataModule(data_path=config['data_params']['data_path'],
-                        train_batch_size=config['data_params']['train_batch_size'],
-                        val_batch_size=config['data_params']['val_batch_size'],
-                        img_size=config['model_params']['image_size'],
-                        num_channels=config['model_params']['in_channels'],
-                        split_ratio=config['data_params']['split_ratio'],
-                        num_workers=config['data_params']['num_workers'],
-                        pin_memory=config['data_params']['pin_memory']
-                        )
+    experiment = Experiment(vae=model, params=config['exp_params'])
+    
+    data = VAEDataModule(
+        data_path=config['data_params']['data_path'],
+        train_batch_size=config['data_params']['train_batch_size'],
+        val_batch_size=config['data_params']['val_batch_size'],
+        img_size=config['model_params']['image_size'],
+        num_channels=config['model_params']['in_channels'],
+        split_ratio=config['data_params']['split_ratio'],
+        num_workers=config['data_params']['num_workers'],
+        pin_memory=config['data_params']['pin_memory']
+    )
     data.setup()
     
-    optimizer, scheduler = expiriment.configure_optimizers()
+    optimizer, scheduler = experiment.configure_optimizers()
     
-    history = expiriment.train(train_dataloader=data.train_dataloader(),
-                    # val_dataloader=data.val_dataloader(),
-                    optimizer=optimizer, 
-                    scheduler=scheduler, 
-                    device=device)
+    print("Starting training...")
+    history = experiment.train(
+        train_dataloader=data.train_dataloader(),
+        optimizer=optimizer, 
+        scheduler=scheduler, 
+        device=device
+    )
     
-    plot_graphs.loss_curve(epochs=config['exp_params']['max_epochs'],
-                           loss_history=history['train_loss'],
-                           output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
-                           )
+    # Plot training curves
+    plot_graphs.loss_curve(
+        epochs=config['exp_params']['max_epochs'],
+        loss_history=history['train_loss'],
+        output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
+    )
     
-    plot_graphs.learning_rate(epochs=config['exp_params']['max_epochs'],
-                              lr_history=history['learning_rate'],
-                              output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
-                              )
+    plot_graphs.learning_rate(
+        epochs=config['exp_params']['max_epochs'],
+        lr_history=history['learning_rate'],
+        output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
+    )
     
+    print("\n" + "="*50)
     print("Starting testing and secret sharing...")
-    # val_dataset = data.val_dataset 
-    # ran_num = torch.randint(0, len(val_dataset), (1,)).item()
-    # test_image = val_dataset[ran_num].unsqueeze(0).to(device)
+    print("="*50)
     
+    # Get test image
     test_image = util.get_test_image(
-                        directory=config['data_params']['data_path'],
-                        param=config['model_params'],
-                        device=device
-                        )
+        directory=config['data_params']['data_path'],
+        param=config['model_params'],
+        device=device
+    )
     
-    util.save_image(test_image.squeeze(0),
-                    util.join_paths(log_dir, config['logging_params']['recon_subdir'], 
-                                    "original_image.png") 
-                    )
+    util.save_image(
+        test_image.squeeze(0),
+        util.join_paths(log_dir, config['logging_params']['recon_subdir'], "original_image.png") 
+    )
     
     with torch.no_grad():
+        # Get reconstruction and codebook indices
         reconstructed_image = model.generate(test_image)
+        encoding_indices = model.get_codebook_indices(test_image)
         
-        mu, log_var = model.encode(reconstructed_image)
-        latent = model.reparameterize(mu, log_var)
+        print(f"\nCodebook indices shape: {encoding_indices.shape}")
+        print(f"Indices range: [{encoding_indices.min().item()}, {encoding_indices.max().item()}]")
+        print(f"Unique indices used: {len(torch.unique(encoding_indices))}/{model.num_embeddings}")
         
-        shares_with_positions = sss.create_shares(
-                    latent.squeeze(0).cpu(), # [latent_dim]
-                    n=config['shamir']['num_shares'], 
-                    r=config['shamir']['threshold'],
-                    output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
-                )
+        # Create Shamir shares from codebook indices
+        print(f"\nCreating {config['shamir']['num_shares']} shares with threshold {config['shamir']['threshold']}...")
+        shares_with_positions = sss.create_shares_from_indices(
+            encoding_indices,
+            n=config['shamir']['num_shares'], 
+            r=config['shamir']['threshold'],
+            output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
+        )
         
-        combined_latent = sss.combine_shares(shares_with_positions, config['shamir']['threshold']).unsqueeze(0).to(device)
+        # Reconstruct from shares
+        print(f"\nRecombining shares (using threshold={config['shamir']['threshold']} shares)...")
+        reconstructed_indices = sss.combine_shares_to_indices(
+            shares_with_positions, 
+            config['shamir']['threshold'],
+            shape=(encoding_indices.shape[1], encoding_indices.shape[2])
+        ).to(device)
         
-        reconstructed_from_combined = model.decode(combined_latent)
+        print(f"Reconstructed indices shape: {reconstructed_indices.shape}")
         
-        print(f"Original latent (first 5): {latent.squeeze(0)[:5]}")
-        print(f"Reconstructed latent (first 5): {combined_latent.squeeze(0)[:5]}")
+        # Check reconstruction accuracy
+        indices_match = torch.equal(encoding_indices, reconstructed_indices)
+        print(f"Indices perfectly reconstructed: {indices_match}")
+        if not indices_match:
+            diff = (encoding_indices != reconstructed_indices).sum().item()
+            total = encoding_indices.numel()
+            print(f"Mismatched indices: {diff}/{total} ({100*diff/total:.2f}%)")
         
-        util.save_image(reconstructed_from_combined.squeeze(0), 
-                    util.join_paths(log_dir, config['logging_params']['recon_subdir'], "reconstructed_from_combined.png")
-                    )
+        # Decode from reconstructed indices
+        reconstructed_from_shares = model.decode_from_indices(reconstructed_indices)
+        
+        # Save reconstructed image
+        util.save_image(
+            reconstructed_from_shares.squeeze(0), 
+            util.join_paths(log_dir, config['logging_params']['recon_subdir'], "reconstructed_from_shares.png")
+        )
+        
+        # Also save direct reconstruction for comparison
+        util.save_image(
+            reconstructed_image.squeeze(0), 
+            util.join_paths(log_dir, config['logging_params']['recon_subdir'], "reconstructed_direct.png")
+        )
     
+    # Plot statistics
+    print("\nGenerating comparison statistics...")
+    plot_graphs.statistics(
+        img_path1=util.join_paths(log_dir, config['logging_params']['recon_subdir'], "original_image.png"),
+        img_path2=util.join_paths(log_dir, config['logging_params']['recon_subdir'], "reconstructed_from_shares.png"), 
+        output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
+    )
     
-    plot_graphs.statistics(img_path1=util.join_paths(log_dir, 
-                                                    config['logging_params']['recon_subdir'], 
-                                                    "original_image.png"),
-                            img_path2=util.join_paths(log_dir, 
-                                                    config['logging_params']['recon_subdir'], 
-                                                    "reconstructed_from_combined.png"), 
-                            output_dir=util.join_paths(log_dir, 
-                                                    config['logging_params']['graph_subdir'])
-                            )
-    
+    print("\n" + "="*50)
+    print("VQ-VAE training and testing completed!")
+    print(f"Results saved to: {log_dir}")
+    print("="*50)
+
 if __name__ == "__main__":
     main()
