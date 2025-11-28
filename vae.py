@@ -11,6 +11,55 @@ from typing import List
 import graph as plot_graphs
 
 
+class Residual(nn.Module):
+    def __init__(self, in_channels: int, num_hiddens: int, num_residual_hiddens: int):
+        super().__init__()
+        # Block: Conv3x3 -> ReLU -> Conv1x1 (bottleneck structure)
+        self._block = nn.Sequential(
+            nn.ReLU(),
+            # 1. Bottleneck Conv (reduces channels)
+            nn.Conv2d(in_channels=in_channels,
+                      out_channels=num_residual_hiddens,
+                      kernel_size=3, stride=1, padding=1, bias=False),
+            nn.ReLU(),
+            # 2. Final Conv (restores channels)
+            nn.Conv2d(in_channels=num_residual_hiddens,
+                      out_channels=num_hiddens,
+                      kernel_size=1, stride=1, bias=False)
+        )
+        
+        # Ensure num_hiddens is the output channel count
+        self._input_is_different = in_channels != num_hiddens
+        if self._input_is_different:
+             self._input_projection = nn.Conv2d(in_channels, num_hiddens, kernel_size=1)
+
+    def forward(self, x: Tensor) -> Tensor:
+        # Standard ResNet: Output = x + F(x)
+        # If input channels and output channels are different, project input first
+        if self._input_is_different:
+            identity = self._input_projection(x)
+        else:
+            identity = x
+            
+        return identity + self._block(x)
+
+
+class ResidualStack(nn.Module):
+    def __init__(self, in_channels: int, num_hiddens: int, num_residual_layers: int, num_residual_hiddens: int):
+        super().__init__()
+        self._num_residual_layers = num_residual_layers
+        # Create a list of Residual blocks
+        self._layers = nn.ModuleList([
+            Residual(in_channels if i == 0 else num_hiddens, num_hiddens, num_residual_hiddens)
+            for i in range(self._num_residual_layers)
+        ])
+
+    def forward(self, x: Tensor) -> Tensor:
+        for i in range(self._num_residual_layers):
+            x = self._layers[i](x)
+        # Apply final ReLU after the stack
+        return F.relu(x)
+    
 class VectorQuantizer(nn.Module):
     """
     Vector Quantization layer that replaces continuous latent space with discrete codebook
@@ -78,7 +127,10 @@ class VQVariationalAutoencoder(nn.Module):
                  num_embeddings: int = 512,  # Codebook size
                  embedding_dim: int = 64,    # Dimension of each code
                  num_channels: int = 1,
-                 commitment_cost: float = 0.25) -> None:
+                 commitment_cost: float = 0.25,
+                 # --- NEW HYPERPARAMETERS for Residual Blocks ---
+                 num_residual_layers: int = 2,    # Number of residual blocks in the stack
+                 num_residual_hiddens: int = 32) -> None: # Channels in the internal bottleneck
         super().__init__()
         
         self.image_size = image_size
@@ -95,23 +147,25 @@ class VQVariationalAutoencoder(nn.Module):
             # Input: [batch, 1, 256, 256]
             nn.Conv2d(self.num_channels, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
             nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),  # -> [batch, 64, 64, 64]
             nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
             nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             
             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # -> [batch, 256, 16, 16]
             nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             
             nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1), # -> [batch, 512, 8, 8]
             nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
+
+            ResidualStack(512, 512, num_residual_layers, num_residual_hiddens)
         )
         
         # Project to embedding dimension for quantization
@@ -127,24 +181,27 @@ class VQVariationalAutoencoder(nn.Module):
         # Project back from embedding dimension
         self.post_quantization_conv = nn.Conv2d(embedding_dim, 512, kernel_size=1)
         
-        # Decoder - Transposed Convolutional layers (same as before)
+        # Decoder - Transposed Convolutional layers
         self.decoder = nn.Sequential(
             # Input: [batch, 512, 8, 8]
             nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1), # -> [batch, 256, 16, 16]
             nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             
+            # ResidualStack should output 256 channels to match the next layer
+            ResidualStack(256, 256, num_residual_layers, num_residual_hiddens),
+
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
             nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # -> [batch, 64, 64, 64]
             nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             
             nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
             nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.2),
+            nn.ReLU(),
             
             nn.ConvTranspose2d(32, self.num_channels, kernel_size=4, stride=2, padding=1),  # -> [batch, 1, 256, 256]
             nn.Sigmoid(),
