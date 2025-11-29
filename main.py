@@ -89,14 +89,19 @@ def main():
     print("="*50)
     
     # Get a batch from validation set
-    val_loader = data.val_dataloader()
-    random_batch_idx = random.randint(0, len(val_loader) - 1)
-    for i, batch in enumerate(val_loader):
-        if i == random_batch_idx:
-            test_images = batch
-            break
-    test_image = test_images[0].unsqueeze(0).to(device)
-    
+    # val_loader = data.val_dataloader()
+    # random_batch_idx = random.randint(0, len(val_loader) - 1)
+    # for i, batch in enumerate(val_loader):
+    #     if i == random_batch_idx:
+    #         test_images = batch
+    #         break
+    # test_image = test_images[0].unsqueeze(0).to(device)
+
+    test_image = util.get_test_image(
+                        directory=config['data_params']['data_path'],
+                        param=config['model_params'],
+                        device=device
+                        )    
     util.save_image(
         test_image.squeeze(0),
         util.join_paths(log_dir, config['logging_params']['recon_subdir'], "original_image.png") 
