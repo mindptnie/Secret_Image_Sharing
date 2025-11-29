@@ -139,8 +139,8 @@ class VQVariationalAutoencoder(nn.Module):
         self.num_channels = num_channels
         
         # Calculate the size after convolutions
-        # For 256x256: 256 -> 128 -> 64 -> 32 -> 16 -> 8
-        self.final_conv_size = image_size // 32 
+        # For 128x128: 128 -> 64 -> 32 (stride 2) -> 32 -> 32 -> 32 (stride 1)
+        self.final_conv_size = image_size // 4 
         
         # Encoder - Convolutional layers (same as before)
         self.encoder = nn.Sequential(
@@ -153,15 +153,15 @@ class VQVariationalAutoencoder(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),  # -> [batch, 128, 32, 32]
             nn.BatchNorm2d(128),
             nn.ReLU(),
             
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # -> [batch, 256, 16, 16]
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),  # -> [batch, 256, 32, 32]
             nn.BatchNorm2d(256),
             nn.ReLU(),
             
-            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1), # -> [batch, 512, 8, 8]
+            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1), # -> [batch, 512, 32, 32]
             nn.BatchNorm2d(512),
             nn.ReLU(),
 
@@ -183,19 +183,19 @@ class VQVariationalAutoencoder(nn.Module):
         
         # Decoder - Transposed Convolutional layers
         self.decoder = nn.Sequential(
-            # Input: [batch, 512, 8, 8]
-            nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1), # -> [batch, 256, 16, 16]
+            # Input: [batch, 512, 32, 32]
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=1, padding=1), # -> [batch, 256, 32, 32]
             nn.BatchNorm2d(256),
             nn.ReLU(),
             
             # ResidualStack should output 256 channels to match the next layer
             ResidualStack(256, 256, num_residual_layers, num_residual_hiddens),
 
-            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # -> [batch, 128, 32, 32]
+            nn.ConvTranspose2d(256, 128, kernel_size=3, stride=1, padding=1),  # -> [batch, 128, 32, 32]
             nn.BatchNorm2d(128),
             nn.ReLU(),
             
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # -> [batch, 64, 64, 64]
+            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=1, padding=1),  # -> [batch, 64, 32, 32]
             nn.BatchNorm2d(64),
             nn.ReLU(),
             
