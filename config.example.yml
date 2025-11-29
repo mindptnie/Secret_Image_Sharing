@@ -16,9 +16,7 @@ data_params:
 exp_params:
   max_epochs: 100
   LR: 0.001
-  weight_decay: 0.000001
   scheduler_gamma: 0.5
-  kld_weight: 0.01
   step_size: 20
   device_type: "cuda"
 
