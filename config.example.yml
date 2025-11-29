@@ -4,6 +4,9 @@ model_params:
   num_embeddings: 512      # Size of codebook (number of discrete codes)
   embedding_dim: 64        # Dimension of each code vector
   commitment_cost: 0.25    # Weight for commitment loss
+  num_hiddens: 128
+  num_residual_hiddens: 32
+  num_residual_layers: 2
   
 data_params:
   data_path: "Data/"
@@ -11,6 +14,7 @@ data_params:
   val_batch_size:  64
   split_ratio: 1
   num_workers: 8
+  random_test: False
   pin_memory: True
 
 exp_params:
