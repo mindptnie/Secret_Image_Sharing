@@ -119,77 +119,6 @@ class VectorQuantizer(nn.Module):
         
         return quantized, loss, encoding_indices
 
-# class VectorQuantizerEMA(nn.Module):
-#     def __init__(self, num_embeddings, embedding_dim, commitment_cost, decay, epsilon=1e-5):
-#         super(VectorQuantizerEMA, self).__init__()
-        
-#         self.embedding_dim = embedding_dim
-#         self.num_embeddings = num_embeddings
-        
-#         self.embedding = nn.Embedding(self.num_embeddings, self.embedding_dim)
-#         self.embedding.weight.data.normal_()
-#         self.commitment_cost = commitment_cost
-        
-#         self.register_buffer('ema_cluster_size', torch.zeros(num_embeddings))
-#         self.ema_w = nn.Parameter(torch.Tensor(num_embeddings, self.embedding_dim))
-#         self.ema_w.data.normal_()
-        
-#         self.decay = decay
-#         self.epsilon = epsilon
-
-#     def forward(self, inputs):
-#         # convert inputs from BCHW -> BHWC
-#         inputs = inputs.permute(0, 2, 3, 1).contiguous()
-#         input_shape = inputs.shape
-        
-#         # Flatten input
-#         flat_input = inputs.view(-1, self.embedding_dim)
-        
-#         # Calculate distances
-#         distances = (torch.sum(flat_input**2, dim=1, keepdim=True) 
-#                     + torch.sum(self.embedding.weight**2, dim=1)
-#                     - 2 * torch.matmul(flat_input, self.embedding.weight.t()))
-            
-#         # Encoding
-#         encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
-#         encodings = torch.zeros(encoding_indices.shape[0], self.num_embeddings, device=inputs.device)
-#         encodings.scatter_(1, encoding_indices, 1)
-        
-#         # Quantize and unflatten
-#         quantized = torch.matmul(encodings, self.embedding.weight).view(input_shape)
-        
-#         # Use EMA to update the embedding vectors
-#         if self.training:
-#             self.ema_cluster_size = self.ema_cluster_size * self.decay + \
-#                                      (1 - self.decay) * torch.sum(encodings, 0)
-            
-#             # Laplace smoothing of the cluster size
-#             n = torch.sum(self.ema_cluster_size.data)
-#             self.ema_cluster_size = (
-#                 (self.ema_cluster_size + self.epsilon)
-#                 / (n + self.num_embeddings * self.epsilon) * n)
-            
-#             dw = torch.matmul(encodings.t(), flat_input)
-#             self.ema_w = nn.Parameter(self.ema_w * self.decay + (1 - self.decay) * dw)
-            
-#             self.embedding.weight = nn.Parameter(self.ema_w / self.ema_cluster_size.unsqueeze(1))
-        
-#         # Loss
-#         e_latent_loss = F.mse_loss(quantized.detach(), inputs)
-#         loss = self.commitment_cost * e_latent_loss
-        
-#         # Straight Through Estimator
-#         quantized = inputs + (quantized - inputs).detach()
-#         avg_probs = torch.mean(encodings, dim=0)
-#         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
-        
-#         # convert quantized from BHWC -> BCHW
-#         quantized = quantized.permute(0, 3, 1, 2).contiguous()
-        
-#         # Reshape encoding_indices
-#         encoding_indices = encoding_indices.view(input_shape[0], input_shape[1], input_shape[2])
-        
-#         return quantized, loss, encoding_indices, perplexity
 
 class VQVariationalAutoencoder(nn.Module):
     def __init__(self, 
@@ -210,8 +139,7 @@ class VQVariationalAutoencoder(nn.Module):
         self.num_channels = num_channels
         
         # Calculate the size after convolutions
-        # For 128x128: 128 -> 64 -> 32 (stride 2) -> 32 -> 32 -> 32 (stride 1)
-        self.final_conv_size = image_size // 4 
+        self.final_conv_size = image_size // 32 
         
         # Encoder - Convolutional layers (same as before)
         self.encoder = nn.Sequential(
