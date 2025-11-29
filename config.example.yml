@@ -1,8 +1,6 @@
 model_params:
-  in_channels: 1
-  latent_dim: 1024
+  in_channels: 3
   image_size: 128
-  manual_seed: 67
   num_embeddings: 512      # Size of codebook (number of discrete codes)
   embedding_dim: 64        # Dimension of each code vector
   commitment_cost: 0.25    # Weight for commitment loss
@@ -11,12 +9,12 @@ data_params:
   data_path: "Data/"
   train_batch_size: 64
   val_batch_size:  64
-  split_ratio: 0.8
+  split_ratio: 1
   num_workers: 8
   pin_memory: True
 
 exp_params:
-  max_epochs: 10
+  max_epochs: 100
   LR: 0.001
   weight_decay: 0.000001
   scheduler_gamma: 0.5
