@@ -1,0 +1,8 @@
+model_params:
+  num_channels: 3
+  image_size: 128
+  num_embeddings: 256      
+  embedding_dim: 64        
+  commitment_cost: 0.25
+
+

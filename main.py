@@ -4,11 +4,10 @@ import random
 from torch import cuda
 from torch.backends import cudnn
 
-from vae import VQVariationalAutoencoder
+from model import vae_models
 from dataset import VAEDataModule
 from experiment import Experiment
 
-import dataset as ds
 import utility as util
 import shamir as sss
 import graph as plot_graphs
@@ -25,6 +24,8 @@ print(f"Using device: {device}")
 def main():
     
     config = util.load_config("config.yml")
+    model_type = config['model_use']['name']
+    params = util.load_config('config/'+model_type+'.yml')
     
     util.create_directory(config['logging_params']['base_dir'])
     base_log_dir = config['logging_params']['base_dir']
@@ -35,16 +36,11 @@ def main():
     util.create_directory(util.join_paths(log_dir, config['logging_params']['share_subdir']))
     util.save_config(config, 
                      save_path=util.join_paths(log_dir, "config_used.yml"))
+    util.save_config(params, 
+                     save_path=util.join_paths(log_dir, model_type +'.yml'))
     
     # Create VQ-VAE model instead of VAE
-    model = VQVariationalAutoencoder(
-        image_size=config['model_params']['image_size'], 
-        num_embeddings=config['model_params'].get('num_embeddings', 512),  # Codebook size
-        embedding_dim=config['model_params'].get('embedding_dim', 64),      # Code dimension
-        num_channels=config['model_params']['in_channels'],
-        commitment_cost=config['model_params'].get('commitment_cost', 0.25)
-    )
-    
+    model = vae_models[model_type](**params['model_params'])    
     print(f"VQ-VAE created with codebook size: {model.num_embeddings}, embedding dim: {model.embedding_dim}")
     
     experiment = Experiment(vae=model, params=config['exp_params'])
@@ -53,8 +49,8 @@ def main():
         data_path=config['data_params']['data_path'],
         train_batch_size=config['data_params']['train_batch_size'],
         val_batch_size=config['data_params']['val_batch_size'],
-        img_size=config['model_params']['image_size'],
-        num_channels=config['model_params']['in_channels'],
+        img_size=params['model_params']['image_size'],
+        num_channels=params['model_params']['num_channels'],
         split_ratio=config['data_params']['split_ratio'],
         num_workers=config['data_params']['num_workers'],
         pin_memory=config['data_params']['pin_memory']
@@ -90,6 +86,7 @@ def main():
     
     # Get a batch from validation set
     if config["data_params"]["random_test"]:
+        test_images = None
         val_loader = data.val_dataloader()
         random_batch_idx = random.randint(0, len(val_loader) - 1)
         for i, batch in enumerate(val_loader):
@@ -100,7 +97,7 @@ def main():
     else:
         test_image = util.get_test_image(
                         directory=config['data_params']['data_path'],
-                        param=config['model_params'],
+                        param=params['model_params'],
                         device=device
                         )    
     util.save_image(
