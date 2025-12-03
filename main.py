@@ -39,9 +39,7 @@ def main():
     util.save_config(params, 
                      save_path=util.join_paths(log_dir, model_type +'.yml'))
     
-    # Create VQ-VAE model instead of VAE
     model = vae_models[model_type](**params['model_params'])    
-    print(f"VQ-VAE created with codebook size: {model.num_embeddings}, embedding dim: {model.embedding_dim}")
     
     experiment = Experiment(vae=model, params=config['exp_params'])
     
@@ -106,44 +104,76 @@ def main():
     )
     
     with torch.no_grad():
-        # Get reconstruction and codebook indices
+        # Get reconstruction
         reconstructed_image = model.generate(test_image)
-        encoding_indices = model.get_codebook_indices(test_image)
         
-        print(f"\nCodebook indices shape: {encoding_indices.shape}")
-        print(f"Indices range: [{encoding_indices.min().item()}, {encoding_indices.max().item()}]")
-        print(f"Unique indices used: {len(torch.unique(encoding_indices))}/{model.num_embeddings}")
-        
-        # Create Shamir shares from codebook indices
-        print(f"\nCreating {config['shamir']['num_shares']} shares with threshold {config['shamir']['threshold']}...")
-        shares_with_positions = sss.create_shares_from_indices(
-            encoding_indices,
-            n=config['shamir']['num_shares'], 
-            r=config['shamir']['threshold'],
-            output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
-        )
-        
-        # Reconstruct from shares
-        print(f"\nRecombining shares (using threshold={config['shamir']['threshold']} shares)...")
-        reconstructed_indices = sss.combine_shares_to_indices(
-            shares_with_positions, 
-            config['shamir']['threshold'],
-            shape=(encoding_indices.shape[1], encoding_indices.shape[2])
-        ).to(device)
-        
-        print(f"Reconstructed indices shape: {reconstructed_indices.shape}")
-        
-        # Check reconstruction accuracy
-        indices_match = torch.equal(encoding_indices, reconstructed_indices)
-        print(f"Indices perfectly reconstructed: {indices_match}")
-        if not indices_match:
-            diff = (encoding_indices != reconstructed_indices).sum().item()
-            total = encoding_indices.numel()
-            print(f"Mismatched indices: {diff}/{total} ({100*diff/total:.2f}%)")
-        
-        # Decode from reconstructed indices
-        reconstructed_from_shares = model.decode_from_indices(reconstructed_indices)
-        
+        if hasattr(model, 'get_codebook_indices'):
+            # VQ-VAE Logic
+            encoding_indices = model.get_codebook_indices(test_image)
+            
+            print(f"\nCodebook indices shape: {encoding_indices.shape}")
+            print(f"Indices range: [{encoding_indices.min().item()}, {encoding_indices.max().item()}]")
+            print(f"Unique indices used: {len(torch.unique(encoding_indices))}/{model.num_embeddings}")
+            
+            # Create Shamir shares from codebook indices
+            print(f"\nCreating {config['shamir']['num_shares']} shares with threshold {config['shamir']['threshold']}...")
+            shares_with_positions = sss.create_shares_from_indices(
+                encoding_indices,
+                n=config['shamir']['num_shares'], 
+                r=config['shamir']['threshold'],
+                output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
+            )
+            
+            # Reconstruct from shares
+            print(f"\nRecombining shares (using threshold={config['shamir']['threshold']} shares)...")
+            reconstructed_indices = sss.combine_shares_to_indices(
+                shares_with_positions, 
+                config['shamir']['threshold'],
+                shape=(encoding_indices.shape[1], encoding_indices.shape[2])
+            ).to(device)
+            
+            print(f"Reconstructed indices shape: {reconstructed_indices.shape}")
+            
+            # Check reconstruction accuracy
+            indices_match = torch.equal(encoding_indices, reconstructed_indices)
+            print(f"Indices perfectly reconstructed: {indices_match}")
+            if not indices_match:
+                diff = (encoding_indices != reconstructed_indices).sum().item()
+                total = encoding_indices.numel()
+                print(f"Mismatched indices: {diff}/{total} ({100*diff/total:.2f}%)")
+            
+            # Decode from reconstructed indices
+            reconstructed_from_shares = model.decode_from_indices(reconstructed_indices)
+            
+        else:
+            # VAE Logic (Legacy/Continuous)
+            print("\nVAE model detected. Using continuous latent space sharing (Legacy Mode).")
+            mu, log_var = model.encode(test_image)
+            # Use mu (mean) for deterministic sharing
+            z_flat = mu.view(-1)
+            
+            print(f"Latent shape: {z_flat.shape}")
+            
+            print(f"\nCreating {config['shamir']['num_shares']} shares with threshold {config['shamir']['threshold']}...")
+            shares_with_positions = sss.create_shares_legacy(
+                z_flat,
+                n=config['shamir']['num_shares'], 
+                r=config['shamir']['threshold'],
+                output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
+            )
+            
+            print(f"\nRecombining shares...")
+            reconstructed_latent = sss.combine_shares_legacy(
+                shares_with_positions, 
+                config['shamir']['threshold']
+            ).to(device)
+            
+            # Reshape for decoder [1, latent_dim]
+            reconstructed_latent = reconstructed_latent.unsqueeze(0)
+            
+            # Decode
+            reconstructed_from_shares = model.decode(reconstructed_latent)
+
         # Save reconstructed image
         util.save_image(
             reconstructed_from_shares.squeeze(0), 
@@ -165,7 +195,7 @@ def main():
     )
     
     print("\n" + "="*50)
-    print("VQ-VAE training and testing completed!")
+    print("training and testing completed!")
     print(f"Results saved to: {log_dir}")
     print("="*50)
 

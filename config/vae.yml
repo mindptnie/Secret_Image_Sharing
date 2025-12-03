@@ -1,0 +1,4 @@
+model_params:
+  num_channels: 3
+  latent_dim: 1024
+  image_size: 128
