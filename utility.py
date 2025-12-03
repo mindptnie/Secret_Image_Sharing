@@ -103,7 +103,6 @@ def join_paths(*paths)->str:
 def get_test_image(directory:str, param:dict,device)->torch.Tensor:
     test_image_path = get_img_files_in_directory(
                             directory=directory,
-                            pattern="1 (1644).jpg"
                         )[0]
     test_image = covert_to_tensor(
                         img=load_image(test_image_path),
