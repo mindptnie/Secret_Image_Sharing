@@ -150,35 +150,63 @@ class VQ_VAE_Gan(BaseVAE):
         self.gan_loss_weight = gan_loss_weight
 
         # Assumes total stride=4 (Adjust based on your final encoder strides)
-        self.final_conv_size = image_size // 4 
+        self.final_conv_size = image_size // 32 
         
         # --- Encoder --- (Simplified for brevity, based on your original structure)
         self.encoder = nn.Sequential(
             nn.Conv2d(self.num_channels, 32, kernel_size=4, stride=2, padding=1), 
-            nn.BatchNorm2d(32), nn.ReLU(),
+            nn.BatchNorm2d(32), 
+            nn.ReLU(),
+
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1), 
-            nn.BatchNorm2d(64), nn.ReLU(),
+            nn.BatchNorm2d(64), 
+            nn.ReLU(),
+
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1), 
-            nn.BatchNorm2d(128), nn.ReLU(),
-            nn.Conv2d(128, 512, kernel_size=3, stride=1, padding=1), 
-            nn.BatchNorm2d(512), nn.ReLU(),
+            nn.BatchNorm2d(128), 
+            nn.ReLU(),
+
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),  # -> [batch, 256, 32, 32]
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            
+            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1), 
+            nn.BatchNorm2d(512), 
+            nn.ReLU(),
             ResidualStack(512, 512, num_residual_layers, num_residual_hiddens)
         )
         
         self.pre_quantization_conv = nn.Conv2d(512, embedding_dim, kernel_size=1)
-        self.vector_quantizer = VectorQuantizer(num_embeddings, embedding_dim, commitment_cost)
+        self.vector_quantizer = VectorQuantizer(
+            num_embeddings=num_embeddings,
+            embedding_dim=embedding_dim,
+            commitment_cost=commitment_cost,
+        )
         self.post_quantization_conv = nn.Conv2d(embedding_dim, 512, kernel_size=1)
         
         # --- Decoder ---
         self.decoder = nn.Sequential(
-            ResidualStack(512, 512, num_residual_layers, num_residual_hiddens),
-            nn.ConvTranspose2d(512, 128, kernel_size=3, stride=1, padding=1), 
-            nn.BatchNorm2d(128), nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=1, padding=1), 
-            nn.BatchNorm2d(64), nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1), 
-            nn.BatchNorm2d(32), nn.ReLU(),
-            nn.ConvTranspose2d(32, self.num_channels, kernel_size=4, stride=2, padding=1), 
+            # Input: [batch, 512, 32, 32]
+            nn.ConvTranspose2d(512, 256, kernel_size=3, stride=1, padding=1), # -> [batch, 256, 32, 32]
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            
+            # ResidualStack should output 256 channels to match the next layer
+            ResidualStack(256, 256, num_residual_layers, num_residual_hiddens),
+
+            nn.ConvTranspose2d(256, 128, kernel_size=3, stride=1, padding=1),  # -> [batch, 128, 32, 32]
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            
+            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=1, padding=1),  # -> [batch, 64, 32, 32]
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # -> [batch, 32, 128, 128]
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            
+            nn.ConvTranspose2d(32, self.num_channels, kernel_size=4, stride=2, padding=1),  # -> [batch, 1, 256, 256]
             nn.Sigmoid(),
         )
         
