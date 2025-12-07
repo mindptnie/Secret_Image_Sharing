@@ -85,18 +85,18 @@ class ResidualStack(nn.Module):
         return F.relu(x)
     
 class VectorQuantizer(nn.Module):
-    def __init__(self, num_embeddings: int, embedding_dim: int, commitment_cost: float = 0.25):
+    def __init__(self, codebook_size: int, codebook_dim: int, commitment_cost: float = 0.25):
         super().__init__()
-        self.num_embeddings = num_embeddings
-        self.embedding_dim = embedding_dim
+        self.codebook_size = codebook_size
+        self.codebook_dim = codebook_dim
         self.commitment_cost = commitment_cost
         
-        self.embedding = nn.Embedding(num_embeddings, embedding_dim)
-        self.embedding.weight.data.uniform_(-1.0 / num_embeddings, 1.0 / num_embeddings)
+        self.embedding = nn.Embedding(codebook_size, codebook_dim)
+        self.embedding.weight.data.uniform_(-1.0 / codebook_size, 1.0 / codebook_size)
         
     def forward(self, z: Tensor) -> tuple:
         z = z.permute(0, 2, 3, 1).contiguous()
-        z_flattened = z.view(-1, self.embedding_dim) 
+        z_flattened = z.view(-1, self.codebook_dim) 
         
         # Calculate distances (L2 norm)
         distances = (
@@ -107,7 +107,7 @@ class VectorQuantizer(nn.Module):
         
         # Find closest codebook entry
         encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
-        encodings = torch.zeros(encoding_indices.shape[0], self.num_embeddings, device=z.device)
+        encodings = torch.zeros(encoding_indices.shape[0], self.codebook_size, device=z.device)
         encodings.scatter_(1, encoding_indices, 1)
         
         # Quantize
@@ -134,8 +134,8 @@ class VectorQuantizer(nn.Module):
 class VQ_VAE_Gan(BaseVAE):
     def __init__(self, 
                  image_size: int, 
-                 num_embeddings: int = 512, 
-                 embedding_dim: int = 64, 
+                 codebook_size: int = 512, 
+                 codebook_dim: int = 64, 
                  num_channels: int = 1,
                  commitment_cost: float = 0.25,
                  num_residual_layers: int = 2, 
@@ -144,8 +144,8 @@ class VQ_VAE_Gan(BaseVAE):
         super().__init__()
         
         self.image_size = image_size
-        self.num_embeddings = num_embeddings
-        self.embedding_dim = embedding_dim
+        self.codebook_size = codebook_size
+        self.codebook_dim = codebook_dim
         self.num_channels = num_channels
         self.gan_loss_weight = gan_loss_weight
 
@@ -176,13 +176,13 @@ class VQ_VAE_Gan(BaseVAE):
             ResidualStack(512, 512, num_residual_layers, num_residual_hiddens)
         )
         
-        self.pre_quantization_conv = nn.Conv2d(512, embedding_dim, kernel_size=1)
+        self.pre_quantization_conv = nn.Conv2d(512, codebook_dim, kernel_size=1)
         self.vector_quantizer = VectorQuantizer(
-            num_embeddings=num_embeddings,
-            embedding_dim=embedding_dim,
+            codebook_size=codebook_size,
+            codebook_dim=codebook_dim,
             commitment_cost=commitment_cost,
         )
-        self.post_quantization_conv = nn.Conv2d(embedding_dim, 512, kernel_size=1)
+        self.post_quantization_conv = nn.Conv2d(codebook_dim, 512, kernel_size=1)
         
         # --- Decoder ---
         self.decoder = nn.Sequential(
@@ -283,17 +283,17 @@ class VQ_VAE_Gan(BaseVAE):
     
     def sample(self, num_samples: int, device: torch.device) -> Tensor:
         indices = torch.randint(
-            0, self.num_embeddings, 
+            0, self.codebook_size, 
             (num_samples, self.final_conv_size, self.final_conv_size),
             device=device
         )
-        one_hot = F.one_hot(indices, num_classes=self.num_embeddings).float()
+        one_hot = F.one_hot(indices, num_classes=self.codebook_size).float()
         quantized = torch.matmul(
-            one_hot.view(-1, self.num_embeddings),
+            one_hot.view(-1, self.codebook_size),
             self.vector_quantizer.embedding.weight
         )
         quantized = quantized.view(
-            num_samples, self.final_conv_size, self.final_conv_size, self.embedding_dim
+            num_samples, self.final_conv_size, self.final_conv_size, self.codebook_dim
         )
         quantized = quantized.permute(0, 3, 1, 2).contiguous()
         return self.decode(quantized)
@@ -307,12 +307,12 @@ class VQ_VAE_Gan(BaseVAE):
         return encoding_indices
     
     def decode_from_indices(self, indices: Tensor) -> Tensor:
-        one_hot = F.one_hot(indices.long(), num_classes=self.num_embeddings).float()
+        one_hot = F.one_hot(indices.long(), num_classes=self.codebook_size).float()
         quantized = torch.matmul(
-            one_hot.view(-1, self.num_embeddings),
+            one_hot.view(-1, self.codebook_size),
             self.vector_quantizer.embedding.weight
         )
         batch_size, height, width = indices.shape
-        quantized = quantized.view(batch_size, height, width, self.embedding_dim)
+        quantized = quantized.view(batch_size, height, width, self.codebook_dim)
         quantized = quantized.permute(0, 3, 1, 2).contiguous()
         return self.decode(quantized)

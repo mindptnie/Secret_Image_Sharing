@@ -113,7 +113,7 @@ def main():
             
             print(f"\nCodebook indices shape: {encoding_indices.shape}")
             print(f"Indices range: [{encoding_indices.min().item()}, {encoding_indices.max().item()}]")
-            print(f"Unique indices used: {len(torch.unique(encoding_indices))}/{model.num_embeddings}")
+            print(f"Unique indices used: {len(torch.unique(encoding_indices))}/{model.codebook_size}")
             
             # Create Shamir shares from codebook indices
             print(f"\nCreating {config['shamir']['num_shares']} shares with threshold {config['shamir']['threshold']}...")
