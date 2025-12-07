@@ -17,28 +17,28 @@ class VectorQuantizer(nn.Module):
     """
     Vector Quantization layer that replaces continuous latent space with discrete codebook
     """
-    def __init__(self, num_embeddings: int, embedding_dim: int, commitment_cost: float = 0.25):
+    def __init__(self, codebook_size: int, codebook_dim: int, commitment_cost: float = 0.25):
         super().__init__()
-        self.num_embeddings = num_embeddings  # Size of codebook
-        self.embedding_dim = embedding_dim    # Dimension of each embedding
+        self.codebook_size = codebook_size  # Size of codebook
+        self.codebook_dim = codebook_dim    # Dimension of each embedding
         self.commitment_cost = commitment_cost
         
         # Initialize codebook
-        self.embedding = nn.Embedding(num_embeddings, embedding_dim)
-        self.embedding.weight.data.uniform_(-1.0 / num_embeddings, 1.0 / num_embeddings)
+        self.embedding = nn.Embedding(codebook_size, codebook_dim)
+        self.embedding.weight.data.uniform_(-1.0 / codebook_size, 1.0 / codebook_size)
         
     def forward(self, z: Tensor) -> tuple:
         """
         Args:
-            z: Encoder output [batch, embedding_dim, height, width]
+            z: Encoder output [batch, codebook_dim, height, width]
         Returns:
-            quantized: Quantized version [batch, embedding_dim, height, width]
+            quantized: Quantized version [batch, codebook_dim, height, width]
             loss: VQ loss (commitment + codebook)
             encoding_indices: Codebook indices [batch, height, width]
         """
         # Convert from [B, C, H, W] to [B, H, W, C]
         z = z.permute(0, 2, 3, 1).contiguous()
-        z_flattened = z.view(-1, self.embedding_dim)  # [B*H*W, C]
+        z_flattened = z.view(-1, self.codebook_dim)  # [B*H*W, C]
         
         # Calculate distances to codebook vectors
         # (z - e)^2 = z^2 + e^2 - 2*z*e
@@ -50,7 +50,7 @@ class VectorQuantizer(nn.Module):
         
         # Find closest codebook entry
         encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
-        encodings = torch.zeros(encoding_indices.shape[0], self.num_embeddings, device=z.device)
+        encodings = torch.zeros(encoding_indices.shape[0], self.codebook_size, device=z.device)
         encodings.scatter_(1, encoding_indices, 1)
         
         # Quantize
@@ -77,15 +77,15 @@ class VectorQuantizer(nn.Module):
 class VQ_VAE(BaseVAE):
     def __init__(self, 
                  image_size: int, 
-                 num_embeddings: int = 512,  # Codebook size
-                 embedding_dim: int = 64,    # Dimension of each code
+                 codebook_size: int = 512,  # Codebook size
+                 codebook_dim: int = 64,    # Dimension of each code
                  num_channels: int = 1,
                  commitment_cost: float = 0.25) -> None:
         super().__init__()
         
         self.image_size = image_size
-        self.num_embeddings = num_embeddings
-        self.embedding_dim = embedding_dim
+        self.codebook_size = codebook_size
+        self.codebook_dim = codebook_dim
         self.num_channels = num_channels
         
         # Calculate the size after convolutions
@@ -119,15 +119,15 @@ class VQ_VAE(BaseVAE):
             nn.LeakyReLU(0.2),
         )
         
-        self.pre_quantization_conv = nn.Conv2d(512, embedding_dim, kernel_size=1)
+        self.pre_quantization_conv = nn.Conv2d(512, codebook_dim, kernel_size=1)
         
         self.vector_quantizer = VectorQuantizer(
-            num_embeddings=num_embeddings,
-            embedding_dim=embedding_dim,
+            codebook_size=codebook_size,
+            codebook_dim=codebook_dim,
             commitment_cost=commitment_cost
         )
         
-        self.post_quantization_conv = nn.Conv2d(embedding_dim, 512, kernel_size=1)
+        self.post_quantization_conv = nn.Conv2d(codebook_dim, 512, kernel_size=1)
         
         # Decoder (Mirror Encoder)
         self.decoder = nn.Sequential(
@@ -207,29 +207,29 @@ class VQ_VAE(BaseVAE):
         """
         # Randomly sample codebook indices
         indices = torch.randint(
-            0, self.num_embeddings, 
+            0, self.codebook_size, 
             (num_samples, self.final_conv_size, self.final_conv_size),
             device=device
         )
         
         # Convert indices to one-hot
-        one_hot = F.one_hot(indices, num_classes=self.num_embeddings).float()
+        one_hot = F.one_hot(indices, num_classes=self.codebook_size).float()
         
         # Get embeddings
         quantized = torch.matmul(
-            one_hot.view(-1, self.num_embeddings),
+            one_hot.view(-1, self.codebook_size),
             self.vector_quantizer.embedding.weight
         )
         
-        # Reshape to [batch, height, width, embedding_dim]
+        # Reshape to [batch, height, width, codebook_dim]
         quantized = quantized.view(
             num_samples, 
             self.final_conv_size, 
             self.final_conv_size, 
-            self.embedding_dim
+            self.codebook_dim
         )
         
-        # Convert to [batch, embedding_dim, height, width]
+        # Convert to [batch, codebook_dim, height, width]
         quantized = quantized.permute(0, 3, 1, 2).contiguous()
         
         # Decode
@@ -257,19 +257,19 @@ class VQ_VAE(BaseVAE):
             indices: [batch, height, width] codebook indices
         """
         # Convert indices to one-hot
-        one_hot = F.one_hot(indices.long(), num_classes=self.num_embeddings).float()
+        one_hot = F.one_hot(indices.long(), num_classes=self.codebook_size).float()
         
         # Get embeddings
         quantized = torch.matmul(
-            one_hot.view(-1, self.num_embeddings),
+            one_hot.view(-1, self.codebook_size),
             self.vector_quantizer.embedding.weight
         )
         
-        # Reshape to [batch, height, width, embedding_dim]
+        # Reshape to [batch, height, width, codebook_dim]
         batch_size, height, width = indices.shape
-        quantized = quantized.view(batch_size, height, width, self.embedding_dim)
+        quantized = quantized.view(batch_size, height, width, self.codebook_dim)
         
-        # Convert to [batch, embedding_dim, height, width]
+        # Convert to [batch, codebook_dim, height, width]
         quantized = quantized.permute(0, 3, 1, 2).contiguous()
         
         # Decode
