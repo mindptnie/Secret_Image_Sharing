@@ -9,7 +9,7 @@ import graph as plot_graphs
 
 
 device = torch.device("cuda" if cuda.is_available() else "cpu")
-log_dir = "/home/thaione/Desktop/SSS/Secret_Image_Sharing/logs/version_78"
+log_dir = "/home/thaione/Desktop/SSS/Secret_Image_Sharing/logs/version_82"
 path = log_dir+"/vq_vae_model.pth"
 config = util.load_config(log_dir+"/config_used.yml")
 params = util.load_config(log_dir+"/vq_vae.yml")
