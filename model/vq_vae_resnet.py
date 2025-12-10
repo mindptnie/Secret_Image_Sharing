@@ -46,7 +46,11 @@ class Residual(nn.Module):
         return identity + self._block(x)
 
 class ResidualStack(nn.Module):
-    def __init__(self, in_channels: int, num_hiddens: int, num_residual_layers: int, num_residual_hiddens: int):
+    def __init__(self, 
+                 in_channels: int, 
+                 num_hiddens: int, 
+                 num_residual_layers: int, 
+                 num_residual_hiddens: int):
         super().__init__()
         self._num_residual_layers = num_residual_layers
         # Create a list of Residual blocks
