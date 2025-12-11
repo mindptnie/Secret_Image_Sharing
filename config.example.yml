@@ -25,6 +25,7 @@ shamir:
 
 logging_params:
   base_dir: "logs/"
+  model_dir: "checkpoints/"
   graph_subdir: "graphs"
   recon_subdir: "reconstructions"
   share_subdir: "shares"

@@ -9,26 +9,16 @@ import graph as plot_graphs
 
 
 device = torch.device("cuda" if cuda.is_available() else "cpu")
-log_dir = "/home/thaione/Desktop/SSS/Secret_Image_Sharing/logs/version_82"
-path = log_dir+"/vq_vae_model.pth"
-config = util.load_config(log_dir+"/config_used.yml")
-params = util.load_config(log_dir+"/vq_vae.yml")
-data = VAEDataModule(
-    data_path=config['data_params']['data_path'],
-    train_batch_size=config['data_params']['train_batch_size'],
-    val_batch_size=config['data_params']['val_batch_size'],
-    img_size=params['model_params']['image_size'],
-    num_channels=params['model_params']['num_channels'],
-    split_ratio=config['data_params']['split_ratio'],
-    num_workers=config['data_params']['num_workers'],
-    pin_memory=config['data_params']['pin_memory']
-)
-data.setup()
 
-def loadModel():
 
-    model_type = config['model_use']['name']
-    model = vae_models[model_type](**params['model_params'])
+#### Configuration
+VERSION = "82" 
+image_index = 1
+
+def loadModel(name:str,param,path:str):
+
+    model_type = name
+    model = vae_models[model_type](**param)
     
     model = torch.load(path, map_location=device)
     # model.load_state_dict(torch.load(path, map_location=device))
@@ -36,7 +26,7 @@ def loadModel():
     print("model is loaded")
     return model
 
-def loadImage():
+def loadImage(data):
     
     val_loader = data.val_dataloader()
     random_batch_idx = random.randint(0, len(val_loader) - 1)
@@ -50,10 +40,43 @@ def loadImage():
 
     return test_image
 
-def main():
+def loadImageIndex(data,index:int = 0):
+    val_loader = data.val_dataloader()
 
-    model = loadModel()
-    test_image = loadImage()
+    for i, batch in enumerate(val_loader):
+        if i == index:
+            test_images = batch
+            break 
+
+    test_image = test_images[0].unsqueeze(0).to(device)
+
+    return test_image
+
+def main():
+    config = util.load_config("config.yml")
+    log_dir = config['logging_params']['base_dir']+"version_"+VERSION+"/"
+    config = util.load_config(log_dir+"config_used.yml")
+    model_name = config['model_use']['name']
+    path = log_dir+model_name+"_model.pth"
+    params = util.load_config(log_dir+model_name+".yml")
+    data = VAEDataModule(
+        data_path=config['data_params']['data_path'],
+        train_batch_size=config['data_params']['train_batch_size'],
+        val_batch_size=config['data_params']['val_batch_size'],
+        img_size=params['model_params']['image_size'],
+        num_channels=params['model_params']['num_channels'],
+        split_ratio=config['data_params']['split_ratio'],
+        num_workers=config['data_params']['num_workers'],
+        pin_memory=config['data_params']['pin_memory']
+    )
+
+    data.setup()
+
+    model = loadModel(config['model_use']['name'],
+                        param=params['model_params'],
+                        path=path)
+    test_image = loadImageIndex(data=data,
+                                index=image_index)
 
     util.save_image(
         test_image.squeeze(0),
@@ -151,6 +174,12 @@ def main():
         img_path2=util.join_paths(log_dir, config['logging_params']['recon_subdir'], "reconstructed_from_shares.png"), 
         output_dir=util.join_paths(log_dir, config['logging_params']['graph_subdir'])
     )
+    plot_graphs.statistics(
+        img_path1=util.join_paths(log_dir, config['logging_params']['recon_subdir'], "original_image.png"),
+        img_path2=util.join_paths(log_dir, config['logging_params']['recon_subdir'], "reconstructed_direct.png"), 
+        output_dir=util.join_paths(log_dir, "graphs2")
+    )
+
 
 
 
