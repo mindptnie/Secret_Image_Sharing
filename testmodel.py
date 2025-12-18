@@ -12,8 +12,8 @@ device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 
 #### Configuration
-VERSION = "82" 
-image_index = 1
+VERSION = "84" 
+image_index = 4
 
 def loadModel(name:str,param,path:str):
 

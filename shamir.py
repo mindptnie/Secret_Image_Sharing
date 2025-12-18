@@ -9,7 +9,7 @@ import cv2
 from PIL import Image
 from Crypto.Util.number import math, inverse
 
-MODULO = 251  # 使用 mod 251
+MODULO = 255  # 使用 mod 251
 
 # Root directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -113,8 +113,9 @@ def create_shares_from_indices(encoding_indices, n, r, output_dir="shares"):
     Returns:
         shares_with_positions: list of (share_tensor, position, extra_info)
     """
-    if not os.path.exists(os.path.join(BASE_DIR, output_dir)):
-        os.makedirs(os.path.join(BASE_DIR, output_dir))
+    if output_dir:
+        if not os.path.exists(os.path.join(BASE_DIR, output_dir)):
+            os.makedirs(os.path.join(BASE_DIR, output_dir))
     
     # Convert indices to numpy and flatten
     indices_np = encoding_indices.squeeze(0).cpu().numpy().flatten()  # [height*width]
@@ -132,9 +133,10 @@ def create_shares_from_indices(encoding_indices, n, r, output_dir="shares"):
         shares_with_positions.append((share_tensor, position, shares_extra[i]))
 
         # Save as image
-        share_image = share.reshape(height, width).astype(np.uint8)
-        cv2.imwrite(os.path.join(BASE_DIR, output_dir, f"share_{i+1}.png"), share_image)
-        print(f"Share {i+1} saved to {output_dir}/share_{i+1}.png")
+        if output_dir:
+            share_image = share.reshape(height, width).astype(np.uint8)
+            cv2.imwrite(os.path.join(BASE_DIR, output_dir, f"share_{i+1}.png"), share_image)
+            print(f"Share {i+1} saved to {output_dir}/share_{i+1}.png")
 
     return shares_with_positions
 
@@ -162,8 +164,9 @@ def create_shares_legacy(latent, n, r, output_dir="shares"):
     Legacy function for continuous latent space (for backward compatibility)
     This quantizes the latent values to [0, 255] range
     """
-    if not os.path.exists(os.path.join(BASE_DIR, output_dir)):
-        os.makedirs(os.path.join(BASE_DIR, output_dir))
+    if output_dir:
+        if not os.path.exists(os.path.join(BASE_DIR, output_dir)):
+            os.makedirs(os.path.join(BASE_DIR, output_dir))
     
     # Quantize latent to [0, 255] range
     latent_np = latent.detach().cpu().numpy()
@@ -179,8 +182,9 @@ def create_shares_legacy(latent, n, r, output_dir="shares"):
         position = (i + 1,)  
         shares_with_positions.append((share_tensor, position, shares_extra[i]))
         
-        share_image = share.reshape(32, 32).astype(np.uint8)
-        cv2.imwrite(os.path.join(BASE_DIR, output_dir, f"share_{i+1}.png"), share_image)
+        if output_dir:
+            share_image = share.reshape(32, 32).astype(np.uint8)
+            cv2.imwrite(os.path.join(BASE_DIR, output_dir, f"share_{i+1}.png"), share_image)
     
     return shares_with_positions
 
