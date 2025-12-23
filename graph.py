@@ -77,7 +77,7 @@ def plot_comparison(img1, img2, mse, psnr, ssim, output_dir):
     save_path = os.path.join(BASE_DIR,output_dir, "comparison.png")
     plt.savefig(save_path)
     print(f"比較圖已儲存：{save_path}")
-    plt.show()
+    #plt.show()
 
 def save_mse_plot(mse, output_dir):
     """ 儲存 MSE 數線圖 """
@@ -93,7 +93,7 @@ def save_mse_plot(mse, output_dir):
     save_path = os.path.join(BASE_DIR,output_dir, "mse_analysis.png")
     plt.savefig(save_path)
     print(f"MSE 數線圖已儲存：{save_path}")
-    # plt.show()
+    # #plt.show()
 
 def save_psnr_plot(psnr, output_dir):
     """ 儲存 PSNR 數線圖 """
@@ -109,7 +109,7 @@ def save_psnr_plot(psnr, output_dir):
     save_path = os.path.join(BASE_DIR,output_dir, "psnr_analysis.png")
     plt.savefig(save_path)
     print(f"PSNR 數線圖已儲存：{save_path}")
-    # plt.show()
+    # #plt.show()
 
 def save_ssim_plot(ssim_value, output_dir):
     """ 儲存 SSIM 數線圖 """
@@ -126,7 +126,7 @@ def save_ssim_plot(ssim_value, output_dir):
     plt.savefig(save_path)
     print(f"SSIM 數線圖已儲存：{save_path}")
     
-    # plt.show()
+    # #plt.show()
 
 def loss_curve(epochs, loss_history, output_dir="graphs"):
     if not os.path.exists(output_dir):
@@ -144,7 +144,7 @@ def loss_curve(epochs, loss_history, output_dir="graphs"):
     plt.savefig(save_path)
     print(f"SSIM 數線圖已儲存：{save_path}")
     
-    plt.show()
+    #plt.show()
 
 def learning_rate(epochs, lr_history, output_dir="graphs"):
     if not os.path.exists(output_dir):
@@ -162,7 +162,7 @@ def learning_rate(epochs, lr_history, output_dir="graphs"):
     plt.savefig(save_path)
     print(f"Learning Rate 數線圖已儲存：{save_path}")
     
-    plt.show()
+    #plt.show()
 
 def show_image(original_image, reconstructed_from_combined, image_size:tuple, output_dir="graphs"):
     
@@ -174,4 +174,4 @@ def show_image(original_image, reconstructed_from_combined, image_size:tuple, ou
     plt.imshow(reconstructed_from_combined.view(image_size[0], image_size[1]).cpu().numpy(), cmap="gray")
     plt.title("Reconstructed from Shares")
 
-    plt.show()
+    #plt.show()

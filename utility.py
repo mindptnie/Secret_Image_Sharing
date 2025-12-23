@@ -61,13 +61,22 @@ def get_img_files_in_directory(directory:str, pattern:str="*.png")->list:
 
 def load_config(config_path="config.yml"):
     print(f"Loading configuration from: {config_path}")
-    with open(config_path, 'r') as file:
-        try:
+    try:
+        with open(config_path, 'r', encoding='utf-8') as file:
             config = yaml.safe_load(file)
             return config
-        except yaml.YAMLError as exc:
-            print(f"Error loading YAML file: {exc}")
-            return None
+            
+    except FileNotFoundError:
+        print(f"Error: The file '{config_path}' was not found.")
+        return None
+        
+    except yaml.YAMLError as exc:
+        print(f"Error parsing YAML file: {exc}")
+        return None
+    
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return None
 
 def save_config(config:dict, save_path="config_saved.yml"):
     with open(save_path, 'w') as file:
