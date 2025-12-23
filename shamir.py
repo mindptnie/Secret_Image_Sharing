@@ -8,18 +8,17 @@ from torch import float32
 import cv2
 from PIL import Image
 from Crypto.Util.number import math, inverse
-
-MODULO = 255  # 使用 mod 251
+from sympy import prevprime
 
 # Root directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def clamp_pixel_values(img):
+def clamp_pixel_values(img,modulo):
     """處理像素值超過 250 的問題"""
-    img = np.where(img > 250, 250, img)
+    img = np.where(img >= modulo, modulo, img)
     return img
 
-def polynomial(img, n, r):
+def polynomial(img, n, r,modulo=251):
     """
     Standard Shamir Secret Sharing polynomial
     Args:
@@ -27,27 +26,27 @@ def polynomial(img, n, r):
         n: total number of shares
         r: threshold (minimum shares needed to reconstruct)
     """
-    img = clamp_pixel_values(img)
+    img = clamp_pixel_values(img,modulo)
     num_pixels = img.shape[0]
-    coefficients = np.random.randint(low=0, high=MODULO, size=(num_pixels, r - 1))
+    coefficients = np.random.randint(low=0, high=modulo, size=(num_pixels, r - 1))
     secret_imgs = []
     imgs_extra = []
 
     for i in range(1, n + 1):
         base = np.array([i ** j for j in range(1, r)])
         base = np.matmul(coefficients, base)
-        secret_img = (img + base) % MODULO
+        secret_img = (img + base) % modulo
 
-        indices = np.where(secret_img > 250)[0]
+        indices = np.where(secret_img > modulo)[0]
         img_extra = [(int(idx), int(secret_img[idx])) for idx in indices]
-        secret_img[indices] = 250  # 超過 250 的改為 250
+        secret_img[indices] = modulo  
 
         secret_imgs.append(secret_img)
         imgs_extra.append(img_extra)
 
     return np.array(secret_imgs), imgs_extra
 
-def lagrange(x, y, num_points, x_test):
+def lagrange(x, y, num_points, x_test,modulo=251):
     """Lagrange interpolation for reconstruction"""
     l = np.zeros(shape=(num_points,))
     for k in range(num_points):
@@ -55,15 +54,15 @@ def lagrange(x, y, num_points, x_test):
         for k_ in range(num_points):
             if k != k_:
                 d = int(x[k] - x[k_])
-                inv_d = inverse(d, MODULO)
-                l[k] = l[k] * (x_test - x[k_]) * inv_d % MODULO
+                inv_d = inverse(d, modulo)
+                l[k] = l[k] * (x_test - x[k_]) * inv_d % modulo
     
     L = 0
     for i in range(num_points):
         L += y[i] * l[i]
     return L
 
-def decode(imgs, imgs_extra, index, r):
+def decode(imgs, imgs_extra, index, r,modulo=251):
     """
     Reconstruct secret from shares
     Args:
@@ -85,7 +84,7 @@ def decode(imgs, imgs_extra, index, r):
 
     for i in range(dim):
         y = imgs[:, i]
-        pixel = lagrange(x, y, r, 0) % MODULO
+        pixel = lagrange(x, y, r, 0,modulo=modulo)%modulo
         img.append(pixel)
 
         # Progress bar
@@ -102,7 +101,7 @@ def decode(imgs, imgs_extra, index, r):
     print()
     return np.array(img)
 
-def create_shares_from_indices(encoding_indices, n, r, output_dir="shares"):
+def create_shares_from_indices(encoding_indices, n, r, codebook_size:int,output_dir="shares"):
     """
     Create Shamir shares from VQ-VAE codebook indices
     Args:
@@ -122,7 +121,8 @@ def create_shares_from_indices(encoding_indices, n, r, output_dir="shares"):
     
     # The indices are already discrete integers (from codebook)
     # We can directly use them with Shamir Secret Sharing
-    shares, shares_extra = polynomial(indices_np, n=n, r=r)
+    prime_num = prevprime(codebook_size)
+    shares, shares_extra = polynomial(indices_np, n=n, r=r, modulo=prime_num)
     
     shares_with_positions = []
     height, width = encoding_indices.shape[1], encoding_indices.shape[2]
@@ -140,7 +140,7 @@ def create_shares_from_indices(encoding_indices, n, r, output_dir="shares"):
 
     return shares_with_positions
 
-def combine_shares_to_indices(shares_with_positions, r, shape):
+def combine_shares_to_indices(shares_with_positions, r, shape,codebook_size:int):
     """
     Reconstruct codebook indices from shares
     Args:
@@ -150,11 +150,12 @@ def combine_shares_to_indices(shares_with_positions, r, shape):
     Returns:
         reconstructed_indices: [1, height, width] tensor of codebook indices
     """
+    prime_num = prevprime(codebook_size)
     shares = np.array([share_tensor.numpy() for share_tensor, _, _ in shares_with_positions[:r]])
     shares_extra = [extra for _, _, extra in shares_with_positions[:r]]
     indices = [position[0] for _, position, _ in shares_with_positions[:r]]
 
-    reconstructed_indices_flat = decode(shares, shares_extra, indices, r=r)
+    reconstructed_indices_flat = decode(shares, shares_extra, indices, r=r,modulo=prime_num)
     reconstructed_indices = reconstructed_indices_flat.reshape(shape)
     
     return tensor(reconstructed_indices, dtype=int32).unsqueeze(0)

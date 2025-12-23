@@ -57,16 +57,21 @@ def main():
     
     optimizer, scheduler = experiment.configure_optimizers()
     
+    # set saved checkpoint
+    checkpoint = [1,10,50]
+    saved_path = util.join_paths(log_dir, config['model_use']['name'])
     print("Starting training...")
     history = experiment.train(
         train_dataloader=data.train_dataloader(),
         optimizer=optimizer, 
         scheduler=scheduler, 
-        device=device
+        device=device,
+        saved=checkpoint,
+        saved_path=saved_path
     )
     
     # Save model
-    model_save_path = util.join_paths(log_dir, config['model_use']['name']+"_model.pth")
+    model_save_path = util.join_paths(saved_path+"_model.pth")
     print(f"Model saved to: {model_save_path}")
     torch.save(model, model_save_path)
 
@@ -130,6 +135,7 @@ def main():
                 encoding_indices,
                 n=config['shamir']['num_shares'], 
                 r=config['shamir']['threshold'],
+                codebook_size=model.codebook_size,
                 output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
             )
             
@@ -138,6 +144,7 @@ def main():
             reconstructed_indices = sss.combine_shares_to_indices(
                 shares_with_positions, 
                 config['shamir']['threshold'],
+                codebook_size=model.codebook_size,
                 shape=(encoding_indices.shape[1], encoding_indices.shape[2])
             ).to(device)
             
