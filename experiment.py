@@ -10,6 +10,8 @@ from torch import tensor as Tensor
 from torch.utils.data import DataLoader
 from torch.amp import autocast, GradScaler
 
+import utility as util
+
 import graph
 
 class Experiment():
@@ -63,7 +65,7 @@ class Experiment():
         
         return optimizer, scheduler
         
-    def train(self, train_dataloader: DataLoader, optimizer, scheduler, device, val_dataloader: DataLoader=None):
+    def train(self, train_dataloader: DataLoader, optimizer, scheduler, device, val_dataloader: DataLoader=None, saved=[1,10], saved_path=None):
         
         loss_history = []
         val_history = []
@@ -77,7 +79,6 @@ class Experiment():
         total_start_time = time.time()
 
         for epoch in range(self.params['max_epochs']):
-            
             self.vae.train()
             
             epoch_loss = 0
@@ -143,7 +144,13 @@ class Experiment():
                 log_msg += f"Avg. Val Loss: {avg_val_loss:.8f} | "
             log_msg += (f"LR: {current_lr:.8f} | ")
             tqdm.write(log_msg)
-        
+
+            # save model
+            if epoch+1 in saved and saved_path:
+                model_save_path = util.join_paths(saved_path+"_model"+"_epoch"+str(epoch+1)+".pth")
+                print(f"Model saved to: {model_save_path}")
+                torch.save(self.vae, model_save_path)
+
         total_end_time = time.time()
         total_duration_sec = total_end_time - total_start_time
         

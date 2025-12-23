@@ -12,8 +12,8 @@ device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 
 #### Configuration
-VERSION = "84" 
-image_index = 4
+VERSION = "1" 
+image_index = 10
 
 def loadModel(name:str,param,path:str):
 
@@ -89,8 +89,11 @@ def main():
         
         if hasattr(model, 'get_codebook_indices'):
             # VQ-VAE Logic
+            continuous_latent = model.encode(test_image)
             encoding_indices = model.get_codebook_indices(test_image)
             
+            print(f"Continuous latent: {continuous_latent}")
+            print(f"Continuous latent: {continuous_latent.shape}")
             print(f"\nCodebook indices: {encoding_indices}") 
             print(f"\nCodebook indices shape: {encoding_indices.shape}")
             print(f"Indices range: [{encoding_indices.min().item()}, {encoding_indices.max().item()}]")
@@ -102,6 +105,7 @@ def main():
                 encoding_indices,
                 n=config['shamir']['num_shares'], 
                 r=config['shamir']['threshold'],
+                codebook_size=model.codebook_size,
                 output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
             )
             
@@ -110,6 +114,7 @@ def main():
             reconstructed_indices = sss.combine_shares_to_indices(
                 shares_with_positions, 
                 config['shamir']['threshold'],
+                codebook_size=model.codebook_size,
                 shape=(encoding_indices.shape[1], encoding_indices.shape[2])
             ).to(device)
             
