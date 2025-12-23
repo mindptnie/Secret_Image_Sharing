@@ -147,7 +147,7 @@ class Experiment():
 
             # save model
             if epoch+1 in saved and saved_path:
-                model_save_path = util.join_paths(saved_path+"_model"+"_epoch"+str(epoch+1)+".pth")
+                model_save_path = util.join_paths(f"{saved_path}_model_epoch_{epoch+1}.pth")
                 print(f"Model saved to: {model_save_path}")
                 torch.save(self.vae, model_save_path)
 

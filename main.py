@@ -13,6 +13,8 @@ import shamir as sss
 import graph as plot_graphs
 import warnings
 
+from config import Config
+
 warnings.filterwarnings("ignore", 
                         message="Palette images with Transparency expressed in bytes should be converted to RGBA images")
 
@@ -21,11 +23,10 @@ if cuda.is_available():
     cudnn.benchmark = True 
 print(f"Using device: {device}")
 
-def main():
+def main(cfg:Config, params:dict):
     
     config = util.load_config("config.yml")
     model_type = config['model_use']['name']
-    params = util.load_config('config/'+model_type+'.yml')
     
     util.create_directory(config['logging_params']['base_dir'])
     base_log_dir = config['logging_params']['base_dir']
@@ -36,8 +37,8 @@ def main():
     util.create_directory(util.join_paths(log_dir, config['logging_params']['share_subdir']))
     util.save_config(config, 
                      save_path=util.join_paths(log_dir, "config_used.yml"))
-    util.save_config(params, 
-                     save_path=util.join_paths(log_dir, model_type +'.yml'))
+    util.save_config(params['model_params'], 
+                     save_path=util.join_paths(log_dir, cfg.get_model_name() +'.yml'))
     
     model = vae_models[model_type](**params['model_params'])    
     
@@ -58,8 +59,8 @@ def main():
     optimizer, scheduler = experiment.configure_optimizers()
     
     # set saved checkpoint
-    checkpoint = [1,10,50]
-    saved_path = util.join_paths(log_dir, config['model_use']['name'])
+    checkpoint = [1,10,50,100,200,300]
+    saved_path = util.join_paths(log_dir, cfg.get_model_name())
     print("Starting training...")
     history = experiment.train(
         train_dataloader=data.train_dataloader(),
@@ -69,11 +70,6 @@ def main():
         saved=checkpoint,
         saved_path=saved_path
     )
-    
-    # Save model
-    model_save_path = util.join_paths(saved_path+"_model.pth")
-    print(f"Model saved to: {model_save_path}")
-    torch.save(model, model_save_path)
 
     # Plot training curves
     plot_graphs.loss_curve(
@@ -216,4 +212,6 @@ def main():
     print("="*50)
 
 if __name__ == "__main__":
-    main()
+    cfg = Config()
+    mpr = cfg.get_model_params()
+    main(cfg, mpr)

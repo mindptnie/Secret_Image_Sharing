@@ -73,7 +73,6 @@ class VectorQuantizer(nn.Module):
         
         return quantized, loss, encoding_indices
 
-
 class VQ_VAE(BaseVAE):
     def __init__(self, 
                  image_size: int, 

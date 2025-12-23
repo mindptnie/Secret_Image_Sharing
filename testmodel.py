@@ -12,8 +12,9 @@ device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 
 #### Configuration
-VERSION = "1" 
-image_index = 10
+VERSION = "3" 
+INDEX = 10
+EPOCH = 10
 
 def loadModel(name:str,param,path:str):
 
@@ -54,11 +55,11 @@ def loadImageIndex(data,index:int = 0):
 
 def main():
     config = util.load_config("config.yml")
-    log_dir = config['logging_params']['base_dir']+"version_"+VERSION+"/"
-    config = util.load_config(log_dir+"config_used.yml")
+    log_dir = config['logging_params']['base_dir']+"version_{VERSION}/"
+    config = util.load_config(f"{log_dir}config_used.yml")
     model_name = config['model_use']['name']
-    path = log_dir+model_name+"_model.pth"
-    params = util.load_config(log_dir+model_name+".yml")
+    path = f"{log_dir}{model_name}_model_epoch_{EPOCH}.pth"
+    params = util.load_config(f"{log_dir}{model_name}.yml")
     data = VAEDataModule(
         data_path=config['data_params']['data_path'],
         train_batch_size=config['data_params']['train_batch_size'],
@@ -76,7 +77,7 @@ def main():
                         param=params['model_params'],
                         path=path)
     test_image = loadImageIndex(data=data,
-                                index=image_index)
+                                index=INDEX)
 
     util.save_image(
         test_image.squeeze(0),
