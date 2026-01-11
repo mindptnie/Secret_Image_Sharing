@@ -1,6 +1,6 @@
 model_params:
   num_channels: 3
-  image_size: 256
+  image_size: 512
   codebook_size: 128
   codebook_dim: 32
   commitment_cost: 0.25
