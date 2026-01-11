@@ -10,11 +10,11 @@ if __name__ == "__main__":
     base_dim  = mpr['model_params']['codebook_dim']
 
     for i in range(4):
-        current_size = base_size * (2**(i+1))
+        current_size = base_size * (2**(i))
         mpr['model_params']['codebook_size'] = current_size
         
         for j in range(6):
-            current_dim = base_dim * (2**(j+1))
+            current_dim = base_dim * (2**(j))
             mpr['model_params']['codebook_dim'] = current_dim
             
             print(f"   Round {i+1}: Codebook Size {current_size}")

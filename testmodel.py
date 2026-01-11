@@ -12,9 +12,9 @@ device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 
 #### Configuration
-VERSION = "3" 
-INDEX = 10
-EPOCH = 10
+VERSION = "42" 
+INDEX = 5
+EPOCH = 100
 
 def loadModel(name:str,param,path:str):
 
@@ -55,7 +55,7 @@ def loadImageIndex(data,index:int = 0):
 
 def main():
     config = util.load_config("config.yml")
-    log_dir = config['logging_params']['base_dir']+"version_{VERSION}/"
+    log_dir = config['logging_params']['base_dir']+f"version_{VERSION}/"
     config = util.load_config(f"{log_dir}config_used.yml")
     model_name = config['model_use']['name']
     path = f"{log_dir}{model_name}_model_epoch_{EPOCH}.pth"
@@ -64,8 +64,8 @@ def main():
         data_path=config['data_params']['data_path'],
         train_batch_size=config['data_params']['train_batch_size'],
         val_batch_size=config['data_params']['val_batch_size'],
-        img_size=params['model_params']['image_size'],
-        num_channels=params['model_params']['num_channels'],
+        img_size=params['image_size'],
+        num_channels=params['num_channels'],
         split_ratio=config['data_params']['split_ratio'],
         num_workers=config['data_params']['num_workers'],
         pin_memory=config['data_params']['pin_memory']
@@ -74,7 +74,7 @@ def main():
     data.setup()
 
     model = loadModel(config['model_use']['name'],
-                        param=params['model_params'],
+                        param=params,
                         path=path)
     test_image = loadImageIndex(data=data,
                                 index=INDEX)

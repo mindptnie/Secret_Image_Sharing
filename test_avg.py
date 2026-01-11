@@ -12,8 +12,8 @@ device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 
 #### Configuration
-VERSION = "98" 
-image_index = 5
+VERSION = "47" 
+EPOCH = 100
 
 def loadModel(name:str,param,path:str):
 
@@ -54,17 +54,17 @@ def loadImageIndex(data,index:int = 0):
 
 def main():
     config = util.load_config("config.yml")
-    log_dir = config['logging_params']['base_dir']+"version_"+VERSION+"/"
-    config = util.load_config(log_dir+"config_used.yml")
+    log_dir = config['logging_params']['base_dir']+f"version_{VERSION}/"
+    config = util.load_config(f"{log_dir}config_used.yml")
     model_name = config['model_use']['name']
-    path = log_dir+model_name+"_model.pth"
-    params = util.load_config(log_dir+model_name+".yml")
+    path = f"{log_dir}{model_name}_model_epoch_{EPOCH}.pth"
+    params = util.load_config(f"{log_dir}{model_name}.yml")
     data = VAEDataModule(
         data_path=config['data_params']['data_path'],
         train_batch_size=config['data_params']['train_batch_size'],
         val_batch_size=config['data_params']['val_batch_size'],
-        img_size=params['model_params']['image_size'],
-        num_channels=params['model_params']['num_channels'],
+        img_size=params['image_size'],
+        num_channels=params['num_channels'],
         split_ratio=config['data_params']['split_ratio'],
         num_workers=config['data_params']['num_workers'],
         pin_memory=config['data_params']['pin_memory']
@@ -73,7 +73,7 @@ def main():
     data.setup()
 
     model = loadModel(config['model_use']['name'],
-                        param=params['model_params'],
+                        param=params,
                         path=path)
     # Statistics accumulators
     total_mse = 0.0
@@ -105,6 +105,7 @@ def main():
                         encoding_indices,
                         n=config['shamir']['num_shares'], 
                         r=config['shamir']['threshold'],
+                        codebook_size=model.codebook_size,
                         output_dir=None # Do not save every share to disk to save space/time
                     )
                     
@@ -112,6 +113,7 @@ def main():
                     reconstructed_indices = sss.combine_shares_to_indices(
                         shares_with_positions, 
                         config['shamir']['threshold'],
+                        codebook_size=model.codebook_size,
                         shape=(encoding_indices.shape[1], encoding_indices.shape[2])
                     ).to(device)
                     
