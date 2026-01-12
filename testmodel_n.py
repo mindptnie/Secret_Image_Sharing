@@ -15,7 +15,6 @@ START_INDEX = 1
 NUM_IMAGES = 5     
 EPOCH = 100
 
-# ... (ฟังก์ชัน loadModel, loadImage, loadImageIndex เหมือนเดิม) ...
 def loadModel(name:str,param,path:str):
     model_type = name
     model = vae_models[model_type](**param)
@@ -48,6 +47,9 @@ def main():
     model_name = config['model_use']['name']
     path = f"{log_dir}{model_name}_model_epoch_{EPOCH}.pth"
     params = util.load_config(f"{log_dir}{model_name}.yml")
+    
+    util.create_directory(util.join_paths(log_dir, config['logging_params']['recon_subdir']))
+    util.create_directory(util.join_paths(log_dir, config['logging_params']['share_subdir']))
     
     data = VAEDataModule(
         data_path=config['data_params']['data_path'],
@@ -110,28 +112,21 @@ def main():
                 reconstructed_latent = sss.combine_shares_legacy(shares_with_positions, config['shamir']['threshold']).to(device).unsqueeze(0)
                 reconstructed_from_shares = model.decode(reconstructed_latent)
 
-        # เก็บลง List
         original_imgs_list.append(test_image)
         recon_imgs_list.append(reconstructed_from_shares)
         
         print(f"Collected Image {i+1}/{NUM_IMAGES}")
 
-    # ================== แยก Save 2 รูป ==================
     print("Constructing image rows...")
 
-    # 1. สร้างแถว Original (แนวนอน)
     row_original = torch.cat(original_imgs_list, dim=3)
     
-    # Save Original Row
     path_original = util.join_paths(log_dir, config['logging_params']['recon_subdir'], f"row_original_start{START_INDEX}_n{NUM_IMAGES}.png")
     util.save_image(row_original.squeeze(0), path_original)
     print(f"Saved Original Row to: {path_original}")
 
-
-    # 2. สร้างแถว Reconstructed (แนวนอน)
     row_recon = torch.cat(recon_imgs_list, dim=3)
     
-    # Save Recon Row
     path_recon = util.join_paths(log_dir, config['logging_params']['recon_subdir'], f"row_recon_start{START_INDEX}_n{NUM_IMAGES}_c{params['codebook_size']}*{params['codebook_dim']}.png")
     util.save_image(row_recon.squeeze(0), path_recon)
     print(f"Saved Recon Row to: {path_recon}")

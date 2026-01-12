@@ -2,6 +2,8 @@ import time
 import numpy as np
 import sys
 import os
+import re
+import torch
 from torch import tensor
 from torch import int32
 from torch import float32
@@ -126,7 +128,7 @@ def create_shares_from_indices(encoding_indices, n, r, codebook_size:int,output_
     
     shares_with_positions = []
     height, width = encoding_indices.shape[1], encoding_indices.shape[2]
-    
+    print("height,width",height,width)
     for i, share in enumerate(shares):
         share_tensor = tensor(share, dtype=int32)
         position = (i + 1,)  
@@ -134,7 +136,7 @@ def create_shares_from_indices(encoding_indices, n, r, codebook_size:int,output_
 
         # Save as image
         if output_dir:
-            share_image = share.reshape(height, width).astype(np.uint8)
+            share_image = share.reshape(height, width).astype(np.uint16) 
             cv2.imwrite(os.path.join(BASE_DIR, output_dir, f"share_{i+1}.png"), share_image)
             print(f"Share {i+1} saved to {output_dir}/share_{i+1}.png")
 
@@ -205,3 +207,41 @@ def combine_shares_legacy(shares_with_positions, r):
     # For better results, store min/max values separately
     
     return tensor(reconstructed_latent, dtype=float32)
+
+def load_all_shares_from_folder(folder_path):
+    loaded_shares = []
+    
+    if not os.path.exists(folder_path):
+        print(f"Not found folder: {folder_path}")
+        return []
+
+    files = [f for f in os.listdir(folder_path) if f.endswith(".png") and "share_" in f]
+    files.sort(key=lambda f: int(re.search(r'(\d+)', f).group()))
+
+    print(f"Found {len(files)} shares in '{folder_path}'")
+
+    for filename in files:
+        file_path = os.path.join(folder_path, filename)
+        
+        img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
+        
+        if img is None:
+            print(f"Warning: อ่านไฟล์ {filename} ไม่ได้ ข้ามไป...")
+            continue
+
+        share_tensor = torch.tensor(img.flatten().astype(np.int32), dtype=torch.int32)
+        
+        match = re.search(r'share_(\d+)', filename)
+        if match:
+            position_idx = int(match.group(1))
+        else:
+            print(f"Warning: หาเลขตำแหน่งในชื่อไฟล์ {filename} ไม่เจอ ข้ามไป...")
+            continue
+            
+        position = (position_idx,)
+        extra_info = []            
+        
+        loaded_shares.append((share_tensor, position, extra_info))
+        print(f"Loaded: {filename} -> Position {position}")
+
+    return loaded_shares
