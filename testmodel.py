@@ -112,16 +112,11 @@ def main():
                 codebook_size=model.codebook_size,
                 output_dir=util.join_paths(log_dir, config['logging_params']['share_subdir'])
             )
-            
-            shares_temp = sss.load_all_shares_from_folder(util.join_paths(log_dir, config['logging_params']['share_subdir']))
-
-            print(f"\nShares: {shares_with_positions}")
-            print(f"\nShares shape: {shares_temp}")
 
             # Reconstruct from shares
             print(f"\nRecombining shares (using threshold={config['shamir']['threshold']} shares)...")
             reconstructed_indices = sss.combine_shares_to_indices(
-                shares_temp, 
+                shares_with_positions, 
                 config['shamir']['threshold'],
                 codebook_size=model.codebook_size,
                 shape=(encoding_indices.shape[1], encoding_indices.shape[2])
