@@ -59,6 +59,10 @@ def main():
     model_name = config['model_use']['name']
     path = f"{log_dir}{model_name}_model_epoch_{EPOCH}.pth"
     params = util.load_config(f"{log_dir}{model_name}.yml")
+
+    util.create_directory(util.join_paths(log_dir, config['logging_params']['recon_subdir']))
+    util.create_directory(util.join_paths(log_dir, config['logging_params']['share_subdir']))
+    
     data = VAEDataModule(
         data_path=config['data_params']['data_path'],
         train_batch_size=config['data_params']['train_batch_size'],

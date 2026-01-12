@@ -21,7 +21,6 @@ START_INDEX = 1
 NUM_IMAGES = 5     
 EPOCH = 100
 
-# ... (ฟังก์ชัน loadModel, loadImage, loadImageIndex เหมือนเดิม ไม่ต้องแก้) ...
 def loadModel(name:str,param,path:str):
     model_type = name
     model = vae_models[model_type](**param)
@@ -47,7 +46,6 @@ def loadImage(data):
     test_image = test_images[0].unsqueeze(0).to(device)
     return test_image
 
-# เปลี่ยนชื่อจาก main เป็น process_version และรับค่า version_id เข้ามา
 def process_version(version_id):
     print(f"\n{'#'*30}")
     print(f"Processing VERSION: {version_id}")
@@ -55,10 +53,8 @@ def process_version(version_id):
 
     config = util.load_config("config.yml")
     
-    # ใช้ version_id ที่รับเข้ามาแทนตัวแปร Global
     log_dir = config['logging_params']['base_dir']+f"version_{version_id}/"
     
-    # เช็คก่อนว่ามี Folder version นี้จริงไหม เพื่อกัน Error
     if not os.path.exists(log_dir):
         print(f"Error: Log directory for version {version_id} not found at {log_dir}")
         return
