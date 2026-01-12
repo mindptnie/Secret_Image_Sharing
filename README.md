@@ -29,8 +29,7 @@ cp config.example.yml config.yml
 ```
 ## Dataset
 
-You can download the dataset from [here](https://www.kaggle.com/datasets/ashwingupta3012/human-faces).
-or Use other dataset that you want.
+You can download the dataset from [here](https://www.kaggle.com/datasets/ashwingupta3012/human-faces). or Use other dataset that you want.
 
 ## Training & Automatic Testing
 
