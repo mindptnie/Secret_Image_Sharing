@@ -30,6 +30,7 @@ cp config.example.yml config.yml
 ## Dataset
 
 You can download the dataset from [here](https://www.kaggle.com/datasets/ashwingupta3012/human-faces). or Use other dataset that you want.
+Note: The preprocessing script is designed to extract and process only .png, .jpg, .jpeg, .bmp, .tiff images from the source directory. All other file formats will be ignored to ensure model compatibility.
 
 ## Training & Automatic Testing
 
@@ -69,6 +70,7 @@ python testmodel.py
 ├── Data/               # Folder for training images
 └── logs/               # Output folder for experiments (logs/version_X)
 ```
+
 
 
 
