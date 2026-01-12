@@ -1,11 +1,21 @@
-### Installation & Setup
+# Secret Image Sharing using VQ-VAE
 
-This project uses a Conda environment to manage dependencies.
+This project implements **Secret Image Sharing (SIS)** by integrating **Vector Quantized Variational Autoencoder (VQ-VAE)** with **Shamir's Secret Sharing (SSS)**. Images are encoded and compressed via the Deep Learning model into discrete codebook indices, which are then distributed into multiple "shares." To reconstruct the original image, a specified threshold of these shares must be combined.
 
-**1. Prerequisites**
-You must have [Anaconda](https://www.anaconda.com/download) or [Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main) installed.
+## Prerequisites
+
+* **OS:** Linux (Recommended) or Windows
+* **Python:** 3.10 (Required)
+* **Conda:** You must have [Anaconda](https://www.anaconda.com/download) or [Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main) installed.
+* **GPU:** NVIDIA GPU with CUDA support is highly recommended for training.
+
+## Installation
+
+**1. Clone the Repository**
+Download the project to your local machine.
 
 **2. Install the Environment**
+Create the environment using the provided YAML file to install all required libraries (PyTorch, OpenCV, etc.).
 ```bash
 conda env create -f environment.yml
 ```
@@ -13,26 +23,48 @@ conda env create -f environment.yml
 ```bash
 conda activate sis
 ```
-**4. Copy The Configuration file**
+**4. Configuration Copy the example configuration file. You can edit config.yml to change model parameters, data paths, or batch sizes.**
 ```bash
 cp config.example.yml config.yml
 ```
-**5. Running the Program**
+
+## Training & Automatic Testing
+
+Run the main pipeline to train the model and perform secret sharing tests.
 ```bash
 python main.py
 ```
-**Project Structure**
+Outputs (logs, model checkpoints, reconstructed images) are saved in the logs/version_X directory.
+
+### Evaluation (Optional)
+- Automated Experiments: Run grid search experiments for different codebook sizes/dimensions.
+```bash
+python automation.py
+```
+- Test Pre-trained Models: To test a specific pre-trained model version:
+```bash
+python testmodel.py
+```
+
+## Project Structure
 ```
 ├── main.py             # The main script to run the program
-├── config/             # Configuration Parameters 
-├── config.yml          # Configuration file (Batch size, LR, Paths, etc.) 
+├── automation.py       # Script for running automated experiments (Grid Search)
+├── testmodel.py        # Script for testing pre-trained models
+├── test_avg.py         # Script for calculating average metrics over the dataset
+├── config/             # Configuration files for specific models
+├── config.yml          # Global configuration file (Batch size, LR, Paths, etc.)
 ├── environment.yml     # Conda environment dependency file
-├── model/              # VAE model architecture (Encoder, Decoder, loss_function)
+├── model/              # Model architectures (VQ-VAE, VAE, ResNet, GAN)
 ├── experiment.py       # Handles the training/validation loops and logging
 ├── dataset.py          # Data loading (CustomDataset, VAEDataModule)
 ├── shamir.py           # Functions for Shamir's Secret Sharing (SSS)
 ├── graph.py            # Utility functions for plotting graphs (Loss, LR, Comparison)
 ├── utility.py          # Helper functions (load_config, save_image, get_next_version_dir)
-├── Data/               # Folder for training images (path defined in config.yml)
-└── logs/               # Default output folder for experiment versions (logs/version_X)
+├── Data/               # Folder for training images
+└── logs/               # Output folder for experiments (logs/version_X)
 ```
+
+
+
+
