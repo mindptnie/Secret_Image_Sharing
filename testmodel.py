@@ -12,7 +12,7 @@ device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 
 #### Configuration
-VERSION = "42" 
+VERSION = "47" 
 INDEX = 5
 EPOCH = 100
 

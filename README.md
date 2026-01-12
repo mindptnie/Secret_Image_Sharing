@@ -27,6 +27,10 @@ conda activate sis
 ```bash
 cp config.example.yml config.yml
 ```
+## Dataset
+
+You can download the dataset from [here](https://www.kaggle.com/datasets/ashwingupta3012/human-faces).
+or Use other dataset that you want.
 
 ## Training & Automatic Testing
 
@@ -51,7 +55,9 @@ python testmodel.py
 ├── main.py             # The main script to run the program
 ├── automation.py       # Script for running automated experiments (Grid Search)
 ├── testmodel.py        # Script for testing pre-trained models
-├── test_avg.py         # Script for calculating average metrics over the dataset
+├── testmodel_avg.py    # Script for calculating average metrics over the dataset
+├── testmodel_n.py      # Script for testing pre-trained models (multiple images)
+├── testmodel_v.py      # Script for testing pre-trained models (multiple versions)
 ├── config/             # Configuration files for specific models
 ├── config.yml          # Global configuration file (Batch size, LR, Paths, etc.)
 ├── environment.yml     # Conda environment dependency file
