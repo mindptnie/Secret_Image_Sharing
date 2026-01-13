@@ -12,8 +12,8 @@ device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 
 #### Configuration
-VERSION = "47" 
-EPOCH = 100
+VERSION = "0" 
+EPOCH = 1
 
 def loadModel(name:str,param,path:str):
 

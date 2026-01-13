@@ -10,10 +10,10 @@ import shamir as sss
 device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 #### Configuration
-VERSION = "29" 
+VERSION = "0" 
 START_INDEX = 1    
 NUM_IMAGES = 5     
-EPOCH = 100
+EPOCH = 1
 
 def loadModel(name:str,param,path:str):
     model_type = name

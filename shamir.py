@@ -79,7 +79,6 @@ def decode(imgs, imgs_extra, index, r,modulo=251):
     img = []
     last_percent_reported = None
 
-    # ✅ Restore original values > 250
     for i in range(r):
         for idx, original in imgs_extra[i]:
             imgs[i][idx] = original

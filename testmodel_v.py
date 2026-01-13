@@ -2,7 +2,7 @@ import torch
 from torch import cuda
 import random
 import os
-import gc  # import เพิ่มสำหรับเคลียร์ขยะใน memory
+import gc  
 import utility as util
 from dataset import VAEDataModule
 from model import vae_models
@@ -11,15 +11,11 @@ import shamir as sss
 device = torch.device("cuda" if cuda.is_available() else "cpu")
 
 #### Configuration
-# ใส่รายชื่อ Version ที่ต้องการรันที่นี่
-VERSIONS_LIST = ["21", "22", "23", "24", "25", "26", 
-                "28", "29", "30", "31", "32", "33", 
-                "35", "36", "37", "38", "39", "40",
-                "42", "43", "44", "45", "46", "47" ] 
+VERSIONS_LIST = ["0"] 
 
 START_INDEX = 1    
 NUM_IMAGES = 5     
-EPOCH = 100
+EPOCH = 1
 
 def loadModel(name:str,param,path:str):
     model_type = name
@@ -129,24 +125,17 @@ def process_version(version_id):
                 reconstructed_latent = sss.combine_shares_legacy(shares_with_positions, config['shamir']['threshold']).to(device).unsqueeze(0)
                 reconstructed_from_shares = model.decode(reconstructed_latent)
 
-        # เก็บลง List
         original_imgs_list.append(test_image)
         recon_imgs_list.append(reconstructed_from_shares)
         
-        # print(f"Collected Image {i+1}/{NUM_IMAGES}")
-
-    # ================== Save Images ==================
     print(f"Saving images for Version {version_id}...")
 
-    # 1. Original
     row_original = torch.cat(original_imgs_list, dim=3)
     path_original = util.join_paths(log_dir, config['logging_params']['recon_subdir'], f"row_original_start{START_INDEX}_n{NUM_IMAGES}.png")
     util.save_image(row_original.squeeze(0), path_original)
 
-    # 2. Reconstructed
     row_recon = torch.cat(recon_imgs_list, dim=3)
     
-    # เช็คว่ามี codebook_dim ใน params หรือไม่ (กัน error สำหรับ VAE ธรรมดา)
     c_dim = params.get('codebook_dim', 'NA')
     c_size = params.get('codebook_size', 'NA')
     
@@ -164,7 +153,6 @@ def process_version(version_id):
     gc.collect()
 
 def main():
-    # วนลูปรายชื่อ Version ที่ตั้งค่าไว้ข้างบน
     for v in VERSIONS_LIST:
         try:
             process_version(v)
@@ -172,7 +160,7 @@ def main():
             print(f"!!! Error processing version {v}: {e}")
             import traceback
             traceback.print_exc()
-            continue # รัน version ถัดไปต่อเลยแม้ตัวปัจจุบันจะ error
+            continue
 
 if __name__ == "__main__":
     main()
